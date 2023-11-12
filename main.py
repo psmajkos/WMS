@@ -62,6 +62,23 @@ def main():
         EAN_entry.delete(0, tk.END)
         qty_entry.delete(0, tk.END)
 
+    
+    EAN_label = tk.Label(root, text="EAN:")
+    EAN_label.grid(row=0, column=0)
+
+    EAN_entry = ttk.Entry(root, textvariable=EAN)
+    EAN_entry.grid(row=0, column=1)
+
+    qty_entry = ttk.Entry(root, textvariable=qty)
+    qty_entry.grid(row=0, column=2)
+
+    add_button = ttk.Button(root, text="Add Product", command=insert)
+    add_button.grid(row=1, column=0)
+
+    remove_button = ttk.Button(root, text="Remove Product", command=remove)
+    remove_button.grid(row=1, column=1)
+main()
+
 def get_conn():
     return mysql.connector.connect(
         host="localhost",
@@ -85,20 +102,5 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS produkty
                 qty INT(100),
                 qty_sell INT(100),
                 date DATE)''')
-
-EAN_label = tk.Label(root, text="EAN:")
-EAN_label.grid(row=0, column=0)
-
-EAN_entry = ttk.Entry(root, textvariable=EAN)
-EAN_entry.grid(row=0, column=1)
-
-qty_entry = ttk.Entry(root, textvariable=qty)
-qty_entry.grid(row=0, column=2)
-
-add_button = ttk.Button(root, text="Add Product", command=insert)
-add_button.grid(row=1, column=0)
-
-remove_button = ttk.Button(root, text="Remove Product", command=remove)
-remove_button.grid(row=1, column=1)
 
 root.mainloop()
