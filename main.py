@@ -1,8 +1,8 @@
 import mysql.connector
 import tkinter as tk
 from tkinter import ttk, Frame, CENTER, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, X
-from datetime import datetime
 from tkcalendar import Calendar, DateEntry
+from datetime import datetime
 
 def get_conn():
     return mysql.connector.connect(
@@ -31,7 +31,6 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS produkty
                 waznosc DATE)''')
 
 def main():
-
     def refresh():
         for item in operations.get_children():
             operations.delete(item)
@@ -67,34 +66,40 @@ def main():
 
 
     def add_qty_to_db():
+        global cursor
         get_ean = EAN.get()
         get_qty = qty.get()
         name_get = name.get()
         waznosc_get = waznosc.get()
-        qty.set(1)
 
-        
         my_conn = get_conn()
         cursor = my_conn.cursor()
         cursor.execute("USE warehouse")
 
         query = "INSERT INTO produkty(EAN, name, qty, waznosc) VALUES (%s, %s, %s, %s)"
         values = (get_ean, name_get, get_qty, waznosc_get, )
-        print(waznosc_get)
 
-        cursor.execute(query, values)
-        my_conn.commit()
+        try:
+            cursor.execute(query, values)
+            my_conn.commit()
+            # actual_mode()
+
+        except mysql.connector.Error as err:
+            print(f"Error executing query: {err}")
+        finally:
+            cursor.close()
 
         # Clear the entry field after inserting the value
         EAN_entry.delete(0, tk.END)
         qty_entry.delete(0, tk.END)
+        qty.set(1)
         name_entry.delete(0, tk.END)
-        waznosc_entry.delete(0, tk.END)
+        ref()
+        actual_mode()
+        actual_stock()
 
     def packing():
         global cursor  # Declare cursor as a global variable
-        qty.set(1)
-
         get_ean = EAN.get()
         get_qty = qty.get()
 
@@ -123,15 +128,18 @@ def main():
         # Clear the entry field after inserting the value
         EAN_entry.delete(0, tk.END)
         qty_entry.delete(0, tk.END)
+        qty.set(1)
         name_entry.delete(0, tk.END)
+        ref()
+        sell_mode()
 
     EAN_label = tk.Label(main_frame, text="EAN: ")
     EAN_entry = ttk.Entry(main_frame, textvariable=EAN)
     qty_entry = ttk.Entry(main_frame, textvariable=qty, width=3)
-    qty_label = tk.Label(main_frame, text="Qty: ")
-    name_label = tk.Label(main_frame, text="Name: ")
+    qty_label = tk.Label(main_frame, text="Qty: ", width=7)
+    name_label = tk.Label(main_frame, text="Name: ", width=10)
     name_entry = ttk.Entry(main_frame, textvariable=name)
-    waznosc_label = tk.Label(main_frame, text="Waznosc")
+    waznosc_label = tk.Label(main_frame, text="Ważność", width=10)
     waznosc_entry = DateEntry(main_frame, textvariable=waznosc, date_pattern='y/m/d')
     add_button = ttk.Button(main_frame, text="Dodaj do bazy", command=add_qty_to_db)
     send_button = ttk.Button(main_frame, text="Nadaj", command=packing)
@@ -152,11 +160,26 @@ def main():
         today_table()
         add_button.config(state="disabled")
         send_button.config(state="enabled")   
+        waznosc_label.config(text="kiedy")
+        root.bind('<Return>', lambda event=None: packing())
+        # ref()
 
     def actual_mode():
         actual_stock()
+        waznosc_label.config(text="Ważność")
         send_button.config(state="disabled")
         add_button.config(state="enabled")
+        root.bind('<Return>', lambda event=None: add_qty_to_db())
+        # ref()
+
+    def overall_mode():
+        overall_sent()
+        waznosc_label.config(text="kiedy")
+        send_button.config(state="enabled")
+        add_button.config(state="disabled")
+        root.bind('<Return>', lambda event=None: packing())
+        # ref()
+
 
 
     radio_frame = tk.Frame(main_frame, bd=2, relief=SUNKEN)
@@ -176,20 +199,21 @@ def main():
     ).grid(row=2, column=3, ipadx=0, pady=10)
         
     r = IntVar()
+    actual_radio = Radiobutton(radio_frame, text="Stock",
+                        variable=r, value=0,    highlightthickness=0, command=actual_mode)
+    actual_radio.grid(column=2, row=6, sticky="W")
+
     normal = Radiobutton(radio_frame, text="Wysyłka",
                         variable=r, value=1,    highlightthickness=0, command=sell_mode)
     normal.grid(column=2, row=4, sticky="W")
 
-    actual_radio = Radiobutton(radio_frame, text="actual only",
-                        variable=r, value=3,    highlightthickness=0, command=actual_mode)
-    actual_radio.grid(column=2, row=6, sticky="W")
+    overall_radio = Radiobutton(radio_frame, text="Wysłane",
+                        variable=r, value=2,    highlightthickness=0, command=overall_mode)
+    overall_radio.grid(column=2, row=7, sticky="W")
+
 
     radio_frame.grid(column=46, row=1)
 
-    main_frame.grid(row=0)
-
-    btn = ttk.Button(root, command=refresh)
-    btn.grid(row=6, column=4)
 
     operations_frame = Frame(root)
     operations_frame.grid(row=4, column=0)
@@ -211,30 +235,101 @@ def main():
         cursor = my_conn.cursor()
         cursor.execute("USE warehouse")
         date = formatted_date
-        query = "SELECT EAN, name, qty_sell, date FROM produkty WHERE date = %s "
+        query = "SELECT EAN, qty_sell, date FROM produkty WHERE date = %s "
 
         try:
             cursor.execute(query, (date, ))
             data = cursor.fetchall()
-
             # Clear existing items in the Treeview
             for item in operations.get_children():
                 operations.delete(item)
 
             # Insert new data into the Treeview
-            for row in data:
+            for idx, row in enumerate(data, start=1):
                 if row[2] is not None:
-                    operations.insert(parent='', index='end', iid=row[0], text='', values=row)
-                print(row)  # Print each row to check if data is fetched correctly
+                    operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
         finally:
             # Close the cursor
             cursor.close()
 
+    def overall_sent():
+        columns = ('EAN', 'Name', 'Qty Sell', 'Date')
+        headings = ('EAN', 'Name', 'Qty Sell', 'Date')
+
+        configure_treeview(columns, headings)
+        try:
+            my_conn.ping(reconnect=True)  # Reconnect if the connection is lost
+        except mysql.connector.Error as err:
+            print(f"Error: {err}")
+            return
+        cursor = my_conn.cursor()
+        cursor.execute("USE warehouse")
+        date = waznosc.get()
+
+        if date == '':
+            query = "SELECT EAN, name, qty_sell, date FROM produkty"
+            try:
+                cursor.execute(query)
+                data = cursor.fetchall()
+
+                # Clear existing items in the Treeview
+                for item in operations.get_children():
+                    operations.delete(item)
+
+                # Insert new data into the Treeview
+                for idx, row in enumerate(data, start=1):
+                    if row[2] is not None:
+                        operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
+                # for row in data:
+                #     if row[2] is not None:
+                #         operations.insert(parent='', index='end', iid=row[0], text='', values=row)
+            except mysql.connector.Error as err:
+                print(f"Error executing query: {err}")
+            finally:
+                # Close the cursor
+                cursor.close()
+        else:
+            query = "SELECT EAN, name, qty_sell, date FROM produkty WHERE date = %s"
+            try:
+                cursor.execute(query, (date, ))
+                data = cursor.fetchall()
+
+                # Clear existing items in the Treeview
+                for item in operations.get_children():
+                    operations.delete(item)
+
+                # Insert new data into the Treeview
+                for idx, row in enumerate(data, start=1):
+                    if row[2] is not None:
+                        operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
+                # for row in data:
+                #     if row[2] is not None:
+                #         operations.insert(parent='', index='end', iid=row[0], text='', values=row)
+            except mysql.connector.Error as err:
+                print(f"Error executing query: {err}")
+            finally:
+                # Close the cursor
+                cursor.close()
+                
+
+    def copy_ean():
+        selected_item = operations.selection()
+        if selected_item:
+            ean_index = 0  # Assuming EAN is the first column in your Treeview
+            ean_value = operations.item(selected_item, 'values')[ean_index]
+            root.clipboard_clear()
+            root.clipboard_append(ean_value)
+            root.update()
+
+    # Create a button for copying EAN
+    copy_button = ttk.Button(root, text="Copy EAN", command=copy_ean)
+    copy_button.grid(row=2, column=0)  # Adjust the row and column as needed
+
     def actual_stock():
-        columns = ('EAN', 'Qty Difference')
-        headings = ('EAN', 'Qty Stock')
+        columns = ('EAN', "name", 'Qty Difference')
+        headings = ('EAN', "name", 'Qty Stock')
 
         configure_treeview(columns, headings)
 
@@ -245,7 +340,6 @@ def main():
             return
         cursor = my_conn.cursor()
         cursor.execute("USE warehouse")
-        date = formatted_date
         query = "SELECT EAN, SUM(coalesce(qty, 0) - coalesce(qty_sell, 0)) AS qty_difference FROM produkty GROUP BY EAN"
 
         try:
@@ -257,22 +351,31 @@ def main():
                 operations.delete(item)
 
             # Insert new data into the Treeview
-            for row in data:
-                print(row)
+            for idx, row in enumerate(data, start=1):
                 if row[1] is not None:
-                    operations.insert(parent='', index='end', iid=row[0], text='', values=row)
-                print(row)  # Print each row to check if data is fetched correctly
+                    operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
+            operations.update()
+
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
         finally:
             # Close the cursor
             cursor.close()
 
+    main_frame.grid(row=0)
     operations.pack()
-
     actual_stock()
-    
 
+    def ref():
+        for item in operations.get_children():
+            operations.delete(item)
+        # operations_frame.update_idletasks() nie dziala
+        # operations_frame.update() nie dziala
+        operations.update()
+        operations.pack()
+        # actual_stock()
+
+    
     root.mainloop()
 main()
 # restart main? 
