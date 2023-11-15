@@ -54,9 +54,7 @@ def main():
                 text_box = Text(
                 event,
                 height=12,
-                width=40
-                )
-
+                width=40)
                 cursor.close()
 
                 if data is not None:
@@ -97,7 +95,6 @@ def main():
     qty.set(1)
     name = tk.StringVar()
     waznosc = tk.StringVar()
-
 
     def add_qty_to_db():
         get_ean = EAN.get()
@@ -173,7 +170,7 @@ def main():
 
     EAN_label.grid(row=0, column=0)
     EAN_entry.grid(row=0, column=1)
-    EAN_entry.focus()
+    EAN_entry.focus_set()
     qty_label.grid(row=0, column=2)
     qty_entry.grid(row=0, column=3)
     name_label.grid(row=0, column=4)
@@ -189,7 +186,6 @@ def main():
         send_button.config(state="enabled")   
         waznosc_label.config(text="kiedy")
         root.bind('<Return>', lambda event=None: packing())
-        # ref()
 
     def actual_mode():
         actual_stock()
@@ -197,7 +193,6 @@ def main():
         send_button.config(state="disabled")
         add_button.config(state="enabled")
         root.bind('<Return>', lambda event=None: add_qty_to_db())
-        # ref()
 
     def overall_mode():
         overall_sent()
@@ -205,16 +200,16 @@ def main():
         send_button.config(state="enabled")
         add_button.config(state="disabled")
         root.bind('<Return>', lambda event=None: packing())
-        # ref()
 
     def find_by_ean_mode():
-        # find_by_ean()
         send_button.config(state="disabled")
         add_button.config(state="enabled")
         search = ttk.Button(root, text="wyszukaj po ean", command=find_by_ean)
         search.grid(row=3,column=2)
 
     def total_stock_mode():
+        send_button.config(state="disabled")
+        add_button.config(state="disabled")
         base_stock()
 
     radio_frame = tk.Frame(main_frame, bd=2, relief=SUNKEN)
@@ -271,7 +266,7 @@ def main():
 
         configure_treeview(columns, headings)
         date = formatted_date
-        query = "SELECT EAN, qty_sell, date FROM produkty WHERE date = %s "
+        query = "SELECT EAN, name, qty_sell, date FROM produkty WHERE date = %s "
 
         try:
             with get_conn() as my_conn:
@@ -460,36 +455,6 @@ def main():
             print(f"Error executing query: {err}")
         finally:
             cursor.close()
-
-    # def base_stock():
-    #     columns = ('EAN', "name", 'Qty Difference', 'Data wprowadzenia')
-    #     headings = ('EAN', "name", 'Qty Stock', 'date')
-
-    #     configure_treeview(columns, headings)
-
-    #     query = "SELECT EAN, name, SUM(qty), date FROM produkty GROUP BY EAN, name, date;"
-
-    #     try:
-    #         with get_conn() as my_conn:
-    #             with my_conn.cursor() as cursor:
-    #                 cursor.execute("USE warehouse")
-    #                 cursor.execute(query)
-    #                 data = cursor.fetchall()
-
-    #         # Clear existing items in the Treeview
-    #         for item in operations.get_children():
-    #             operations.delete(item)
-
-    #         # Insert new data into the Treeview
-    #         for idx, row in enumerate(data, start=1):
-    #             if row[2] != 0:
-    #                 operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
-    #         operations.update()
-
-    #     except mysql.connector.Error as err:
-    #         print(f"Error executing query: {err}")
-    #     finally:
-    #         cursor.close()
 
     main_frame.grid(row=0)
     operations.pack()
