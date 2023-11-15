@@ -105,12 +105,6 @@ def main():
         name_get = name.get()
         waznosc_get = waznosc.get()
 
-        # my_conn = get_conn()
-        # cursor = my_conn.cursor()
-        
-        # cursor.execute("USE warehouse")
-
-
         query = "INSERT INTO produkty(EAN, name, qty, date, waznosc) VALUES (%s, %s, %s, %s, %s)"
         values = (get_ean, name_get, get_qty, formatted_date, waznosc_get, )
         try:
@@ -139,12 +133,6 @@ def main():
         get_qty = qty.get()
         name_get = name.get()
 
-        # try:
-        #     # Reconnect if the connection is lost
-        #     my_conn.ping(reconnect=True)
-        # except mysql.connector.Error as err:
-        #     print(f"Error: {err}")
-        #     return
         if get_qty is None:
             get_qty = 1
 
@@ -228,9 +216,6 @@ def main():
 
     def total_stock_mode():
         base_stock()
-
-
-
 
     radio_frame = tk.Frame(main_frame, bd=2, relief=SUNKEN)
 
@@ -344,13 +329,7 @@ def main():
         headings = ('EAN', 'Name', 'Qty Sell', 'Date')
 
         configure_treeview(columns, headings)
-        # try:
-        #     my_conn.ping(reconnect=True)  # Reconnect if the connection is lost
-        # except mysql.connector.Error as err:
-        #     print(f"Error: {err}")
-        #     return
-        # cursor = my_conn.cursor()
-        # cursor.execute("USE warehouse")
+
         date = waznosc.get()
 
         if date == '':
@@ -370,9 +349,7 @@ def main():
                 for idx, row in enumerate(data, start=1):
                     if row[2] is not None:
                         operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
-                # for row in data:
-                #     if row[2] is not None:
-                #         operations.insert(parent='', index='end', iid=row[0], text='', values=row)
+
             except mysql.connector.Error as err:
                 print(f"Error executing query: {err}")
             finally:
@@ -395,9 +372,7 @@ def main():
                 for idx, row in enumerate(data, start=1):
                     if row[2] is not None:
                         operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
-                # for row in data:
-                #     if row[2] is not None:
-                #         operations.insert(parent='', index='end', iid=row[0], text='', values=row)
+
             except mysql.connector.Error as err:
                 print(f"Error executing query: {err}")
             finally:
@@ -423,16 +398,8 @@ def main():
         headings = ('EAN', "name", 'Qty Stock')
 
         configure_treeview(columns, headings)
-
-        # try:
-        #     my_conn.ping(reconnect=True)  # Reconnect if the connection is lost
-        # except mysql.connector.Error as err:
-        #     print(f"Error: {err}")
-        #     return
-        # cursor = my_conn.cursor()
         # cursor.execute("USE warehouse")
         query = "SELECT EAN, name, SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference FROM produkty GROUP BY EAN, name;"
-
 
         try:
             with get_conn() as my_conn:
@@ -478,7 +445,6 @@ def main():
 
             # Insert new data into the Treeview
             for idx, row in enumerate(data, start=1):
-                # if row[2] is not None:
                 if row[2] != 0:
                     operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
             operations.update()
