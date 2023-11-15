@@ -14,59 +14,69 @@ def get_conn():
 my_conn = get_conn()
 cursor = my_conn.cursor()
 
-cursor.execute("CREATE DATABASE IF NOT EXISTS warehouse")
+cursor.execute("CREATE DATABASE IF NOT EXISTS wms")
 
-# Switch to the 'warehouse' database
-cursor.execute("USE warehouse")
+cursor.execute("USE wms")
 
-# Create the 'produkty' table
-cursor.execute('''CREATE TABLE IF NOT EXISTS produkty
-                (id INT AUTO_INCREMENT PRIMARY KEY,
+
+cursor.execute('''CREATE TABLE IF NOT EXISTS products
+                (product_id INT AUTO_INCREMENT PRIMARY KEY,
                 EAN BIGINT NOT NULL,
-                name VARCHAR(45),
-                qty INT(100),
-                qty_sell INT(100),
-                date DATE,
-                waznosc DATE)''')
+                name VARCHAR(45))''')
+
+cursor.execute('''CREATE TABLE IF NOT EXISTS inventory
+                (inventory_id INT AUTO_INCREMENT PRIMARY KEY,
+                product_id INT,
+                quantity INT,
+                location VARCHAR(255),
+                expiration_date DATE,
+                entry_date DATE,
+                FOREIGN KEY (product_id) REFERENCES products(product_id))''')
+
+cursor.execute('''CREATE TABLE IF NOT EXISTS transactions
+                (id INT AUTO_INCREMENT PRIMARY KEY,
+                product_id INT,
+                qty INT,
+                transaction_date DATE,
+                FOREIGN KEY (product_id) REFERENCES products(product_id))''')
 
 def main():
-    def expirations():
-        # query = "SELECT EAN, name, date, waznosc FROM produkty WHERE waznosc >= CURDATE() - INTERVAL 7 DAY AND waznosc <= CURDATE() GROUP BY EAN"
-        query ='''SELECT subquery.EAN, subquery.name, subquery.qty_difference FROM (
-                        SELECT EAN, name, SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference
-                        FROM produkty
-                        WHERE waznosc >= CURDATE() - INTERVAL 7 DAY AND waznosc >= CURDATE()
-                        GROUP BY EAN, name) AS subquery;
-                    '''
-        try:
-            with get_conn() as my_conn:
-                with my_conn.cursor() as cursor:
-                    cursor.execute("USE warehouse")
-                    cursor.execute(query)
-                    data = cursor.fetchall()
-                    # print(data)
-        except mysql.connector.Error as err:
-            print(f"Error executing query: {err}")
-        finally:
-            if data:
-                event = tk.Tk()
-                messagebox.showwarning("Message", "Krótka data wazności")
-                text_box = Text(
-                event,
-                height=12,
-                width=40)
-                cursor.close()
+    # def expirations():
+    #     query = '''SELECT subquery.EAN, subquery.name, subquery.qty_difference FROM (
+    #                     SELECT EAN, name, SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference
+    #                     FROM products
+    #                     WHERE waznosc >= CURDATE() - INTERVAL 7 DAY AND waznosc >= CURDATE()
+    #                     GROUP BY EAN, name) AS subquery;
+    #                 '''
+    #     try:
+    #         with get_conn() as my_conn:
+    #             with my_conn.cursor() as cursor:
+    #                 cursor.execute("USE warehouse")
+    #                 cursor.execute(query)
+    #                 data = cursor.fetchall()
+    #                 # print(data)
+    #     except mysql.connector.Error as err:
+    #         print(f"Error executing query: {err}")
+    #     finally:
+    #         if data:
+    #             event = tk.Tk()
+    #             messagebox.showwarning("Message", "Krótka data wazności")
+    #             text_box = Text(
+    #             event,
+    #             height=12,
+    #             width=40)
+    #             cursor.close()
 
-                if data is not None:
-                    text_box.pack(expand=True)
-                    for row in data:
-                        formatted_row = " ".join(str(value) if value is not None else 'None' for value in row)
-                        text_box.insert('end', f"{formatted_row}\n")
-                    text_box.config(state='disabled')
-                    event.mainloop()
-                else:
-                    pass
-    expirations()
+    #             if data is not None:
+    #                 text_box.pack(expand=True)
+    #                 for row in data:
+    #                     formatted_row = " ".join(str(value) if value is not None else 'None' for value in row)
+    #                     text_box.insert('end', f"{formatted_row}\n")
+    #                 text_box.config(state='disabled')
+    #                 event.mainloop()
+    #             else:
+    #                 pass
+    # expirations()
 
     def configure_treeview(columns, headings):
         # Remove existing columns
@@ -98,16 +108,14 @@ def main():
 
     def add_qty_to_db():
         get_ean = EAN.get()
-        get_qty = qty.get()
         name_get = name.get()
-        waznosc_get = waznosc.get()
 
-        query = "INSERT INTO produkty(EAN, name, qty, date, waznosc) VALUES (%s, %s, %s, %s, %s)"
-        values = (get_ean, name_get, get_qty, formatted_date, waznosc_get, )
+        query = "INSERT INTO products(EAN, name) VALUES (%s, %s)"
+        values = (get_ean, name_get, )
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
-                    cursor.execute("USE warehouse")
+                    cursor.execute("USE wms")
                     cursor.execute(query, values)
                     my_conn.commit()
 
@@ -128,21 +136,31 @@ def main():
     def packing():
         get_ean = EAN.get()
         get_qty = qty.get()
-        name_get = name.get()
 
         if get_qty is None:
             get_qty = 1
 
-        query = "INSERT INTO produkty(EAN, name, qty_sell, date) VALUES (%s, %s, %s, %s)"
-        values = (get_ean, name_get, get_qty, formatted_date)
+        # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
+        product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
+        product_id_values = (get_ean, )
 
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
-                    cursor.execute("USE warehouse")
-                    cursor = my_conn.cursor()  # Reopen the cursor
-                    cursor.execute(query, values)
-                    my_conn.commit()
+                    cursor.execute("USE wms")
+                    cursor.execute(product_id_query, product_id_values)
+                    product_id = cursor.fetchone()
+
+                    if product_id:
+                        # 'product_id' retrieved from 'products' table
+                        query = "INSERT INTO transactions(product_id, qty, transaction_date) VALUES (%s, %s, %s)"
+                        values = (product_id[0], get_qty, formatted_date)
+
+                        cursor.execute(query, values)
+                        my_conn.commit()
+                    else:
+                        print("Product not found.")
+
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
         finally:
@@ -156,6 +174,7 @@ def main():
         name_entry.delete(0, tk.END)
         ref()
         sell_mode()
+
 
     EAN_label = tk.Label(main_frame, text="EAN: ")
     EAN_entry = ttk.Entry(main_frame, textvariable=EAN)
@@ -266,12 +285,18 @@ def main():
 
         configure_treeview(columns, headings)
         date = formatted_date
-        query = "SELECT EAN, name, qty_sell, date FROM produkty WHERE date = %s "
+
+        query = '''
+            SELECT p.EAN, p.name, t.qty, t.transaction_date
+            FROM transactions t
+            JOIN products p ON t.product_id = p.product_id
+            WHERE t.transaction_date = %s
+        '''
 
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
-                    cursor.execute("USE warehouse")
+                    cursor.execute("USE wms")
                     cursor.execute(query, (date, ))
                     data = cursor.fetchall()
 
@@ -283,6 +308,7 @@ def main():
             for idx, row in enumerate(data, start=1):
                 if row[2] is not None:
                     operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
+
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
         finally:
@@ -290,17 +316,24 @@ def main():
             cursor.close()
 
     def find_by_ean():
-        columns = ('EAN', 'Name','QTY', 'Qty Sell', 'Date')
-        headings = ('EAN', 'Name','QTY', 'Qty Sell', 'Date')
+        columns = ('EAN', 'Name', 'Quantity', 'Location', 'Expiration Date', 'Transaction Date')
+        headings = ('EAN', 'Name', 'Quantity', 'Location', 'Expiration Date', 'Transaction Date')
 
         configure_treeview(columns, headings)
         ean_to_compare = EAN.get()
-        query = "SELECT EAN, name, qty, qty_sell, waznosc, date FROM produkty WHERE EAN = %s "
+
+        query = '''
+            SELECT p.EAN, p.name, i.quantity, i.location, i.expiration_date, t.transaction_date
+            FROM products p
+            LEFT JOIN inventory i ON p.product_id = i.product_id
+            LEFT JOIN transactions t ON p.product_id = t.product_id
+            WHERE p.EAN = %s
+        '''
 
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
-                    cursor.execute("USE warehouse")
+                    cursor.execute("USE wms")
                     cursor.execute(query, (ean_to_compare, ))
                     data = cursor.fetchall()
 
@@ -319,6 +352,7 @@ def main():
             cursor.close()
 
 
+
     def overall_sent():
         columns = ('EAN', 'Name', 'Qty Sell', 'Date')
         headings = ('EAN', 'Name', 'Qty Sell', 'Date')
@@ -328,11 +362,22 @@ def main():
         date = waznosc.get()
 
         if date == '':
-            query = "SELECT EAN, name, qty_sell, date FROM produkty"
+            # query = '''
+            #     SELECT p.EAN, p.name, COALESCE(SUM(t.qty), 0) AS qty_sell, t.transaction_date
+            #     FROM products p
+            #     LEFT JOIN transactions t ON p.product_id = t.product_id
+            #     GROUP BY p.EAN, p.name, t.transaction_date;
+            # '''
+
+            query = '''
+            SELECT p.EAN, p.name, t.qty, t.transaction_date
+            FROM transactions t
+            JOIN products p ON t.product_id = p.product_id
+        '''
             try:
                 with get_conn() as my_conn:
                     with my_conn.cursor() as cursor:
-                        cursor.execute("USE warehouse")
+                        cursor.execute("USE wms")
                         cursor.execute(query)
                         data = cursor.fetchall()
 
@@ -351,11 +396,17 @@ def main():
                 # Close the cursor
                 cursor.close()
         else:
-            query = "SELECT EAN, name, qty_sell, date FROM produkty WHERE date = %s"
+            query = '''
+                SELECT p.EAN, p.name, COALESCE(SUM(t.qty), 0) AS qty_sell, t.transaction_date
+                FROM products p
+                LEFT JOIN transactions t ON p.product_id = t.product_id
+                WHERE t.transaction_date = %s
+                GROUP BY p.EAN, p.name, t.transaction_date;
+            '''
             try:
                 with get_conn() as my_conn:
                     with my_conn.cursor() as cursor:
-                        cursor.execute("USE warehouse")
+                        cursor.execute("USE wms")
                         cursor.execute(query, (date, ))
                         data = cursor.fetchall()
 
@@ -393,13 +444,20 @@ def main():
         headings = ('EAN', "name", 'Qty Stock')
 
         configure_treeview(columns, headings)
-        # cursor.execute("USE warehouse")
-        query = "SELECT EAN, name, SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference FROM produkty GROUP BY EAN, name;"
+        
+        query = '''
+            SELECT p.EAN, p.name, 
+                COALESCE(SUM(i.quantity), 0) - COALESCE(SUM(t.qty), 0) AS qty_difference
+            FROM products p
+            LEFT JOIN inventory i ON p.product_id = i.product_id
+            LEFT JOIN transactions t ON p.product_id = t.product_id
+            GROUP BY p.EAN, p.name;
+        '''
 
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
-                    cursor.execute("USE warehouse")
+                    cursor.execute("USE wms")
                     cursor.execute(query)
                     data = cursor.fetchall()
 
@@ -409,7 +467,6 @@ def main():
 
             # Insert new data into the Treeview
             for idx, row in enumerate(data, start=1):
-                # if row[2] is not None:
                 if row[2] != 0:
                     operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
             operations.update()
@@ -419,25 +476,38 @@ def main():
         finally:
             cursor.close()
 
+
     def base_stock():
         date = waznosc.get()
-        columns = ('EAN', "name", "qty", "qty_sell", 'Qty Difference', 'date')
-        headings = ('EAN', "name", "Qty", "Qty_sell", 'Qty Stock', 'Date')
+        columns = ('EAN', 'Name', 'Quantity', 'Location', 'Expiration Date', 'Qty Difference', 'Entry Date')
+        headings = ('EAN', 'Name', 'Quantity', 'Location', 'Expiration Date', 'Qty Difference', 'Date')
 
         configure_treeview(columns, headings)
-        # cursor.execute("USE warehouse")
-        # print(date)
-        query = """SELECT EAN, name, SUM(COALESCE(qty, 0)) AS qty, SUM(COALESCE(qty_sell, 0)) AS qty_sell,
-        SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference, date
-        FROM produkty WHERE date = %s
-        GROUP BY EAN, name, date;
-        """
+
+        query = '''
+                SELECT
+                    p.EAN,
+                    p.name,
+                    MAX(i.quantity) AS quantity,
+                    MAX(i.location) AS location,
+                    MAX(i.expiration_date) AS expiration_date,
+                    SUM(COALESCE(i.quantity, 0) - COALESCE(t.qty, 0)) AS qty_difference,
+                    MAX(i.entry_date) AS entry_date
+                FROM
+                    products p
+                LEFT JOIN
+                    inventory i ON p.product_id = i.product_id
+                LEFT JOIN
+                    transactions t ON p.product_id = t.product_id
+                GROUP BY
+                    p.EAN, p.name
+                '''
 
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
-                    cursor.execute("USE warehouse")
-                    cursor.execute(query, (date, ))
+                    cursor.execute("USE wms")
+                    cursor.execute(query)
                     data = cursor.fetchall()
 
             # Clear existing items in the Treeview
@@ -446,8 +516,7 @@ def main():
 
             # Insert new data into the Treeview
             for idx, row in enumerate(data, start=1):
-                # if row[2] is not None:
-                if row[2] != 0:
+                if row[2] is not None:
                     operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
             operations.update()
 
@@ -455,6 +524,7 @@ def main():
             print(f"Error executing query: {err}")
         finally:
             cursor.close()
+
 
     main_frame.grid(row=0)
     operations.pack()
