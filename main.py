@@ -8,7 +8,7 @@ def get_conn():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd=""
+        passwd="Pcf85830"
     )
 
 my_conn = get_conn()
@@ -425,18 +425,24 @@ def main():
             cursor.close()
 
     def base_stock():
-        columns = ('EAN', "name", 'Qty Difference', 'Data wprowadzenia')
-        headings = ('EAN', "name", 'Qty Stock', 'date')
+        date = waznosc.get()
+        columns = ('EAN', "name", "qty", "qty_sell", 'Qty Difference', 'date')
+        headings = ('EAN', "name", "Qty", "Qty_sell", 'Qty Stock', 'Date')
 
         configure_treeview(columns, headings)
-
-        query = "SELECT EAN, name, SUM(qty), date FROM produkty GROUP BY EAN, name, date;"
+        # cursor.execute("USE warehouse")
+        # print(date)
+        query = """SELECT EAN, name, SUM(COALESCE(qty, 0)) AS qty, SUM(COALESCE(qty_sell, 0)) AS qty_sell,
+        SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference, date
+        FROM produkty WHERE date = %s
+        GROUP BY EAN, name, date;
+        """
 
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
                     cursor.execute("USE warehouse")
-                    cursor.execute(query)
+                    cursor.execute(query, (date, ))
                     data = cursor.fetchall()
 
             # Clear existing items in the Treeview
@@ -445,6 +451,7 @@ def main():
 
             # Insert new data into the Treeview
             for idx, row in enumerate(data, start=1):
+                # if row[2] is not None:
                 if row[2] != 0:
                     operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
             operations.update()
@@ -453,6 +460,36 @@ def main():
             print(f"Error executing query: {err}")
         finally:
             cursor.close()
+
+    # def base_stock():
+    #     columns = ('EAN', "name", 'Qty Difference', 'Data wprowadzenia')
+    #     headings = ('EAN', "name", 'Qty Stock', 'date')
+
+    #     configure_treeview(columns, headings)
+
+    #     query = "SELECT EAN, name, SUM(qty), date FROM produkty GROUP BY EAN, name, date;"
+
+    #     try:
+    #         with get_conn() as my_conn:
+    #             with my_conn.cursor() as cursor:
+    #                 cursor.execute("USE warehouse")
+    #                 cursor.execute(query)
+    #                 data = cursor.fetchall()
+
+    #         # Clear existing items in the Treeview
+    #         for item in operations.get_children():
+    #             operations.delete(item)
+
+    #         # Insert new data into the Treeview
+    #         for idx, row in enumerate(data, start=1):
+    #             if row[2] != 0:
+    #                 operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
+    #         operations.update()
+
+    #     except mysql.connector.Error as err:
+    #         print(f"Error executing query: {err}")
+    #     finally:
+    #         cursor.close()
 
     main_frame.grid(row=0)
     operations.pack()
