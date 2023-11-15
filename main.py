@@ -1,7 +1,7 @@
 import mysql.connector
 import tkinter as tk
-from tkinter import ttk, Frame, CENTER, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, X
-from tkcalendar import Calendar, DateEntry
+from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, messagebox,Text
+from tkcalendar import DateEntry
 from datetime import datetime
 
 def get_conn():
@@ -13,7 +13,6 @@ def get_conn():
 
 my_conn = get_conn()
 cursor = my_conn.cursor()
-
 
 cursor.execute("CREATE DATABASE IF NOT EXISTS warehouse")
 
@@ -31,11 +30,42 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS produkty
                 waznosc DATE)''')
 
 def main():
-    def refresh():
-        for item in operations.get_children():
-            operations.delete(item)
+    def expirations():
+        query = "SELECT EAN, name, date FROM produkty WHERE date >= CURDATE() - INTERVAL 7 DAY AND date <= CURDATE();"
 
-    
+        try:
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE warehouse")
+                    cursor.execute(query)
+                    data = cursor.fetchall()
+                    # print(data)
+        except mysql.connector.Error as err:
+            print(f"Error executing query: {err}")
+        finally:
+            event = tk.Tk()
+            messagebox.showwarning("Message", "Krótka data wazności")
+            text_box = Text(
+                event,
+                height=12,
+                width=40
+            )
+                # Close the cursor (optional, as you will close it when the application exits)
+            cursor.close()
+
+            if data is not None:
+                text_box.pack(expand=True)
+                for row in data:
+                    formatted_row = " ".join(str(value) if value is not None else 'None' for value in row)
+                    text_box.insert('end', f"{formatted_row}\n")
+                    # messagebox.showwarning("Message", "Krótka data wazności")
+                text_box.config(state='disabled')
+                event.mainloop()
+            else:
+                pass
+        
+    expirations()
+
     def configure_treeview(columns, headings):
         # Remove existing columns
         for col in operations['columns']:
@@ -66,23 +96,25 @@ def main():
 
 
     def add_qty_to_db():
-        global cursor
         get_ean = EAN.get()
         get_qty = qty.get()
         name_get = name.get()
         waznosc_get = waznosc.get()
 
-        my_conn = get_conn()
-        cursor = my_conn.cursor()
-        cursor.execute("USE warehouse")
+        # my_conn = get_conn()
+        # cursor = my_conn.cursor()
+        
+        # cursor.execute("USE warehouse")
+
 
         query = "INSERT INTO produkty(EAN, name, qty, waznosc) VALUES (%s, %s, %s, %s)"
         values = (get_ean, name_get, get_qty, waznosc_get, )
-
         try:
-            cursor.execute(query, values)
-            my_conn.commit()
-            # actual_mode()
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE warehouse")
+                    cursor.execute(query, values)
+                    my_conn.commit()
 
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
@@ -99,26 +131,29 @@ def main():
         actual_stock()
 
     def packing():
-        global cursor  # Declare cursor as a global variable
         get_ean = EAN.get()
         get_qty = qty.get()
+        name_get = name.get()
 
-        try:
-            # Reconnect if the connection is lost
-            my_conn.ping(reconnect=True)
-        except mysql.connector.Error as err:
-            print(f"Error: {err}")
-            return
+        # try:
+        #     # Reconnect if the connection is lost
+        #     my_conn.ping(reconnect=True)
+        # except mysql.connector.Error as err:
+        #     print(f"Error: {err}")
+        #     return
         if get_qty is None:
             get_qty = 1
 
-        query = "INSERT INTO produkty(EAN, qty_sell, date) VALUES (%s, %s, %s)"
-        values = (get_ean, get_qty, formatted_date)
+        query = "INSERT INTO produkty(EAN, name, qty_sell, date) VALUES (%s, %s, %s, %s)"
+        values = (get_ean, name_get, get_qty, formatted_date)
 
         try:
-            cursor = my_conn.cursor()  # Reopen the cursor
-            cursor.execute(query, values)
-            my_conn.commit()
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE warehouse")
+                    cursor = my_conn.cursor()  # Reopen the cursor
+                    cursor.execute(query, values)
+                    my_conn.commit()
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
         finally:
@@ -180,6 +215,14 @@ def main():
         root.bind('<Return>', lambda event=None: packing())
         # ref()
 
+    def find_by_ean_mode():
+        # find_by_ean()
+        send_button.config(state="disabled")
+        add_button.config(state="enabled")
+        search = ttk.Button(root, text="wyszukaj po ean", command=find_by_ean)
+        search.grid(row=3,column=2)
+
+
 
 
     radio_frame = tk.Frame(main_frame, bd=2, relief=SUNKEN)
@@ -211,6 +254,10 @@ def main():
                         variable=r, value=2,    highlightthickness=0, command=overall_mode)
     overall_radio.grid(column=2, row=7, sticky="W")
 
+    find_by_ean_radio = Radiobutton(radio_frame, text="znajdz po EAN",
+                        variable=r, value=3,    highlightthickness=0, command=find_by_ean_mode)
+    find_by_ean_radio.grid(column=2, row=8, sticky="W")
+
 
     radio_frame.grid(column=46, row=1)
 
@@ -227,19 +274,16 @@ def main():
         headings = ('EAN', 'Name', 'Qty Sell', 'Date')
 
         configure_treeview(columns, headings)
-        try:
-            my_conn.ping(reconnect=True)  # Reconnect if the connection is lost
-        except mysql.connector.Error as err:
-            print(f"Error: {err}")
-            return
-        cursor = my_conn.cursor()
-        cursor.execute("USE warehouse")
         date = formatted_date
         query = "SELECT EAN, qty_sell, date FROM produkty WHERE date = %s "
 
         try:
-            cursor.execute(query, (date, ))
-            data = cursor.fetchall()
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE warehouse")
+                    cursor.execute(query, (date, ))
+                    data = cursor.fetchall()
+
             # Clear existing items in the Treeview
             for item in operations.get_children():
                 operations.delete(item)
@@ -254,25 +298,58 @@ def main():
             # Close the cursor
             cursor.close()
 
+    def find_by_ean():
+        columns = ('EAN', 'Name','QTY', 'Qty Sell', 'Date')
+        headings = ('EAN', 'Name','QTY', 'Qty Sell', 'Date')
+
+        configure_treeview(columns, headings)
+        ean_to_compare = EAN.get()
+        query = "SELECT EAN, name, qty, qty_sell, waznosc, date FROM produkty WHERE EAN = %s "
+
+        try:
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE warehouse")
+                    cursor.execute(query, (ean_to_compare, ))
+                    data = cursor.fetchall()
+
+            # Clear existing items in the Treeview
+            for item in operations.get_children():
+                operations.delete(item)
+
+            # Insert new data into the Treeview
+            for idx, row in enumerate(data, start=1):
+                if row[0] is not None:
+                    operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
+        except mysql.connector.Error as err:
+            print(f"Error executing query: {err}")
+        finally:
+            # Close the cursor
+            cursor.close()
+
+
     def overall_sent():
         columns = ('EAN', 'Name', 'Qty Sell', 'Date')
         headings = ('EAN', 'Name', 'Qty Sell', 'Date')
 
         configure_treeview(columns, headings)
-        try:
-            my_conn.ping(reconnect=True)  # Reconnect if the connection is lost
-        except mysql.connector.Error as err:
-            print(f"Error: {err}")
-            return
-        cursor = my_conn.cursor()
-        cursor.execute("USE warehouse")
+        # try:
+        #     my_conn.ping(reconnect=True)  # Reconnect if the connection is lost
+        # except mysql.connector.Error as err:
+        #     print(f"Error: {err}")
+        #     return
+        # cursor = my_conn.cursor()
+        # cursor.execute("USE warehouse")
         date = waznosc.get()
 
         if date == '':
             query = "SELECT EAN, name, qty_sell, date FROM produkty"
             try:
-                cursor.execute(query)
-                data = cursor.fetchall()
+                with get_conn() as my_conn:
+                    with my_conn.cursor() as cursor:
+                        cursor.execute("USE warehouse")
+                        cursor.execute(query)
+                        data = cursor.fetchall()
 
                 # Clear existing items in the Treeview
                 for item in operations.get_children():
@@ -293,8 +370,11 @@ def main():
         else:
             query = "SELECT EAN, name, qty_sell, date FROM produkty WHERE date = %s"
             try:
-                cursor.execute(query, (date, ))
-                data = cursor.fetchall()
+                with get_conn() as my_conn:
+                    with my_conn.cursor() as cursor:
+                        cursor.execute("USE warehouse")
+                        cursor.execute(query, (date, ))
+                        data = cursor.fetchall()
 
                 # Clear existing items in the Treeview
                 for item in operations.get_children():
@@ -333,18 +413,22 @@ def main():
 
         configure_treeview(columns, headings)
 
-        try:
-            my_conn.ping(reconnect=True)  # Reconnect if the connection is lost
-        except mysql.connector.Error as err:
-            print(f"Error: {err}")
-            return
-        cursor = my_conn.cursor()
-        cursor.execute("USE warehouse")
-        query = "SELECT EAN, SUM(coalesce(qty, 0) - coalesce(qty_sell, 0)) AS qty_difference FROM produkty GROUP BY EAN"
+        # try:
+        #     my_conn.ping(reconnect=True)  # Reconnect if the connection is lost
+        # except mysql.connector.Error as err:
+        #     print(f"Error: {err}")
+        #     return
+        # cursor = my_conn.cursor()
+        # cursor.execute("USE warehouse")
+        query = "SELECT EAN, name, SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference FROM produkty GROUP BY EAN, name;"
+
 
         try:
-            cursor.execute(query)
-            data = cursor.fetchall()
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE warehouse")
+                    cursor.execute(query)
+                    data = cursor.fetchall()
 
             # Clear existing items in the Treeview
             for item in operations.get_children():
@@ -352,14 +436,14 @@ def main():
 
             # Insert new data into the Treeview
             for idx, row in enumerate(data, start=1):
-                if row[1] is not None:
+                # if row[2] is not None:
+                if row[2] != 0:
                     operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
             operations.update()
 
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
         finally:
-            # Close the cursor
             cursor.close()
 
     main_frame.grid(row=0)
@@ -369,13 +453,8 @@ def main():
     def ref():
         for item in operations.get_children():
             operations.delete(item)
-        # operations_frame.update_idletasks() nie dziala
-        # operations_frame.update() nie dziala
-        operations.update()
-        operations.pack()
-        # actual_stock()
 
-    
+        operations.update()
+        operations.pack()  
     root.mainloop()
 main()
-# restart main? 
