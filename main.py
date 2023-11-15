@@ -8,7 +8,7 @@ def get_conn():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd="Pcf85830"
+        passwd=""
     )
 
 my_conn = get_conn()
@@ -32,14 +32,12 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS produkty
 def main():
     def expirations():
         # query = "SELECT EAN, name, date, waznosc FROM produkty WHERE waznosc >= CURDATE() - INTERVAL 7 DAY AND waznosc <= CURDATE() GROUP BY EAN"
-        query ='''SELECT subquery.EAN, subquery.name, subquery.qty_difference
-FROM (
-    SELECT EAN, name, SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference
-    FROM produkty
-    GROUP BY EAN, name
-) AS subquery
-WHERE subquery.qty_difference >= CURDATE() - INTERVAL 7 DAY AND subquery.qty_difference <= CURDATE();
-'''
+        query ='''SELECT subquery.EAN, subquery.name, subquery.qty_difference FROM (
+                        SELECT EAN, name, SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference
+                        FROM produkty
+                        WHERE waznosc >= CURDATE() - INTERVAL 7 DAY AND waznosc >= CURDATE()
+                        GROUP BY EAN, name) AS subquery;
+                    '''
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
@@ -50,29 +48,26 @@ WHERE subquery.qty_difference >= CURDATE() - INTERVAL 7 DAY AND subquery.qty_dif
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
         finally:
-            event = tk.Tk()
-            messagebox.showwarning("Message", "Krótka data wazności")
-            text_box = Text(
+            if data:
+                event = tk.Tk()
+                messagebox.showwarning("Message", "Krótka data wazności")
+                text_box = Text(
                 event,
                 height=12,
                 width=40
-            )
-                # Close the cursor (optional, as you will close it when the application exits)
-            cursor.close()
+                )
 
-            if data is not None:
-                text_box.pack(expand=True)
-                for row in data:
-                    print(f"EAN: {row[0]}, Total Difference: {row[1]}")
-                    # print(row[0])
-                    formatted_row = " ".join(str(value) if value is not None else 'None' for value in row)
-                    text_box.insert('end', f"{formatted_row}\n")
-                    # messagebox.showwarning("Message", "Krótka data wazności")
-                text_box.config(state='disabled')
-                event.mainloop()
-            else:
-                pass
-        
+                cursor.close()
+
+                if data is not None:
+                    text_box.pack(expand=True)
+                    for row in data:
+                        formatted_row = " ".join(str(value) if value is not None else 'None' for value in row)
+                        text_box.insert('end', f"{formatted_row}\n")
+                    text_box.config(state='disabled')
+                    event.mainloop()
+                else:
+                    pass
     expirations()
 
     def configure_treeview(columns, headings):
