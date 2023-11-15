@@ -31,8 +31,15 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS produkty
 
 def main():
     def expirations():
-        query = "SELECT EAN, name, date FROM produkty WHERE date >= CURDATE() - INTERVAL 7 DAY AND date <= CURDATE();"
-
+        # query = "SELECT EAN, name, date, waznosc FROM produkty WHERE waznosc >= CURDATE() - INTERVAL 7 DAY AND waznosc <= CURDATE() GROUP BY EAN"
+        query ='''SELECT subquery.EAN, subquery.name, subquery.qty_difference
+FROM (
+    SELECT EAN, name, SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference
+    FROM produkty
+    GROUP BY EAN, name
+) AS subquery
+WHERE subquery.qty_difference >= CURDATE() - INTERVAL 7 DAY AND subquery.qty_difference <= CURDATE();
+'''
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
@@ -56,6 +63,8 @@ def main():
             if data is not None:
                 text_box.pack(expand=True)
                 for row in data:
+                    print(f"EAN: {row[0]}, Total Difference: {row[1]}")
+                    # print(row[0])
                     formatted_row = " ".join(str(value) if value is not None else 'None' for value in row)
                     text_box.insert('end', f"{formatted_row}\n")
                     # messagebox.showwarning("Message", "Krótka data wazności")
@@ -107,8 +116,8 @@ def main():
         # cursor.execute("USE warehouse")
 
 
-        query = "INSERT INTO produkty(EAN, name, qty, waznosc) VALUES (%s, %s, %s, %s)"
-        values = (get_ean, name_get, get_qty, waznosc_get, )
+        query = "INSERT INTO produkty(EAN, name, qty, date, waznosc) VALUES (%s, %s, %s, %s, %s)"
+        values = (get_ean, name_get, get_qty, formatted_date, waznosc_get, )
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
@@ -222,6 +231,9 @@ def main():
         search = ttk.Button(root, text="wyszukaj po ean", command=find_by_ean)
         search.grid(row=3,column=2)
 
+    def total_stock_mode():
+        base_stock()
+
 
 
 
@@ -250,13 +262,17 @@ def main():
                         variable=r, value=1,    highlightthickness=0, command=sell_mode)
     normal.grid(column=2, row=4, sticky="W")
 
-    overall_radio = Radiobutton(radio_frame, text="Wysłane",
+    overall_radio = Radiobutton(radio_frame, text="Wszystkie wysłane",
                         variable=r, value=2,    highlightthickness=0, command=overall_mode)
     overall_radio.grid(column=2, row=7, sticky="W")
 
     find_by_ean_radio = Radiobutton(radio_frame, text="znajdz po EAN",
                         variable=r, value=3,    highlightthickness=0, command=find_by_ean_mode)
     find_by_ean_radio.grid(column=2, row=8, sticky="W")
+
+    total_stock_radio = Radiobutton(radio_frame, text="wszystkie",
+                        variable=r, value=4,    highlightthickness=0, command=total_stock_mode)
+    total_stock_radio.grid(column=2, row=9, sticky="W")
 
 
     radio_frame.grid(column=46, row=1)
@@ -422,6 +438,37 @@ def main():
         # cursor.execute("USE warehouse")
         query = "SELECT EAN, name, SUM(COALESCE(qty, 0) - COALESCE(qty_sell, 0)) AS qty_difference FROM produkty GROUP BY EAN, name;"
 
+
+        try:
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE warehouse")
+                    cursor.execute(query)
+                    data = cursor.fetchall()
+
+            # Clear existing items in the Treeview
+            for item in operations.get_children():
+                operations.delete(item)
+
+            # Insert new data into the Treeview
+            for idx, row in enumerate(data, start=1):
+                # if row[2] is not None:
+                if row[2] != 0:
+                    operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
+            operations.update()
+
+        except mysql.connector.Error as err:
+            print(f"Error executing query: {err}")
+        finally:
+            cursor.close()
+
+    def base_stock():
+        columns = ('EAN', "name", 'Qty Difference', 'Data wprowadzenia')
+        headings = ('EAN', "name", 'Qty Stock', 'date')
+
+        configure_treeview(columns, headings)
+
+        query = "SELECT EAN, name, SUM(qty), date FROM produkty GROUP BY EAN, name, date;"
 
         try:
             with get_conn() as my_conn:
