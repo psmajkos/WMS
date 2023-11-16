@@ -108,8 +108,15 @@ def main():
     location_var = tk.StringVar()
 
     def add_qty_to_db():
+
         get_ean = EAN.get()
         name_get = name.get()
+
+        # Check if the EAN and name are not empty
+        if not get_ean or not name_get:
+            messagebox.showerror("Error", "EAN and Name are required")
+            return
+
 
         query = "INSERT INTO products(EAN, name) VALUES (%s, %s)"
         values = (get_ean, name_get, )
@@ -124,6 +131,7 @@ def main():
             print(f"Error executing query: {err}")
         finally:
             cursor.close()
+        
 
         # Clear the entry field after inserting the value
         EAN_entry.delete(0, tk.END)
@@ -255,64 +263,60 @@ def main():
     send_button.grid(row=1, column=1)
     location_label.grid(row=2, column=0)
     location_combo.grid(row=2, column=1)
-    
-    
 
+    def show_widgets(widgets):
+        for widget in widgets:
+            widget.grid()
+
+    def hide_widgets(widgets):
+        for widget in widgets:
+            widget.grid_remove()
+
+    def sell_mode_widgets():
+        show_widgets([send_button])
+        hide_widgets([add_button, waznosc_label, waznosc_entry, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button])
+
+    def actual_mode_widgets():
+        show_widgets([add_button, waznosc_label, waznosc_entry, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button])
+        hide_widgets([send_button])
+
+    def add_product_mode_widgets():
+        show_widgets([add_button])
+        hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button])
+
+    def overall_mode_widgets():
+        show_widgets([send_button])
+        hide_widgets([add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button])
+
+    def find_by_ean_mode_widgets():
+        show_widgets([add_button, copy_button])
+        hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button])
+
+    def total_stock_mode_widgets():
+        hide_widgets([add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button])
+    
     def sell_mode():
+        sell_mode_widgets()
         today_table()
-        add_button.config(state="disabled")
-        send_button.config(state="enabled")   
-        waznosc_label.config(text="kiedy")
-        root.bind('<Return>', lambda event=None: packing())
 
     def actual_mode():
+        actual_mode_widgets()
         actual_stock()
-        waznosc_label.config(text="Ważność")
-        send_button.config(state="disabled")
-        add_button.config(state="enabled")
-
-        waznosc_entry.config(state="enabled")
-        waznosc_label.config(state="enabled")
-        qty_entry.config(state="enabled")
-        qty_label.config(state="enabled")
-        location_combo.config(state="enabled")
-        location_label.config(state="enabled")
-        copy_button.config(state="enabled")
-        put_into_inventory_button.config(state="enabled")
-        # root.bind('<Return>', lambda event=None: add_qty_to_db())
 
     def add_product_mode():
-        waznosc_label.config(text="Ważność")
-        send_button.config(state="disabled")
-        add_button.config(state="enabled")
-        waznosc_entry.config(state="disabled")
-        waznosc_label.config(state="disabled")
-        qty_entry.config(state="disabled")
-        qty_label.config(state="disabled")
-        location_combo.config(state="disabled")
-        location_label.config(state="disabled")
-        copy_button.config(state="disabled")
-        put_into_inventory_button.config(state="disabled")
-        name_entry.focus()
-
-        root.bind('<Return>', lambda event=None: add_qty_to_db())
+        add_product_mode_widgets()
+        # add_qty_to_db()
 
     def overall_mode():
+        overall_mode_widgets()
         overall_sent()
-        waznosc_label.config(text="kiedy")
-        send_button.config(state="enabled")
-        add_button.config(state="disabled")
-        root.bind('<Return>', lambda event=None: packing())
 
     def find_by_ean_mode():
-        send_button.config(state="disabled")
-        add_button.config(state="enabled")
-        search = ttk.Button(root, text="wyszukaj po ean", command=find_by_ean)
-        search.grid(row=3,column=2)
+        find_by_ean_mode_widgets()
+        find_by_ean()
 
     def total_stock_mode():
-        send_button.config(state="disabled")
-        add_button.config(state="disabled")
+        total_stock_mode_widgets()
         base_stock()
 
     radio_frame = tk.Frame(main_frame, bd=2, relief=SUNKEN)
@@ -332,32 +336,25 @@ def main():
     ).grid(row=2, column=3, ipadx=0, pady=10)
         
     r = IntVar()
-        
+    # Modify your radio buttons' commands to call the corresponding mode functions
     add_product_radio = Radiobutton(radio_frame, text="Add Product",
-                        variable=r, value=1,    highlightthickness=0, command=add_product_mode)
-    add_product_radio.grid(column=2, row=4, sticky="W")
-
+                        variable=r, value=1, highlightthickness=0, command=add_product_mode)
     actual_radio = Radiobutton(radio_frame, text="Stock",
-                        variable=r, value=0,    highlightthickness=0, command=actual_mode)
-    actual_radio.grid(column=2, row=5, sticky="W")
-
+                        variable=r, value=0, highlightthickness=0, command=actual_mode)
     find_by_ean_radio = Radiobutton(radio_frame, text="znajdz po EAN",
-                        variable=r, value=4,    highlightthickness=0, command=find_by_ean_mode)
-    find_by_ean_radio.grid(column=2, row=6, sticky="W")
-
+                        variable=r, value=4, highlightthickness=0, command=find_by_ean_mode)
     normal = Radiobutton(radio_frame, text="Wysyłka",
-                        variable=r, value=2,    highlightthickness=0, command=sell_mode)
-    normal.grid(column=2, row=7, sticky="W")
-
+                        variable=r, value=2, highlightthickness=0, command=sell_mode)
     overall_radio = Radiobutton(radio_frame, text="Wszystkie wysłane",
-                        variable=r, value=3,    highlightthickness=0, command=overall_mode)
-    overall_radio.grid(column=2, row=8, sticky="W")
-
-
+                        variable=r, value=3, highlightthickness=0, command=overall_mode)
     total_stock_radio = Radiobutton(radio_frame, text="wszystkie",
-                        variable=r, value=5,    highlightthickness=0, command=total_stock_mode)
+                        variable=r, value=5, highlightthickness=0, command=total_stock_mode)
+    add_product_radio.grid(column=2, row=4, sticky="W")
+    actual_radio.grid(column=2, row=5, sticky="W")
+    find_by_ean_radio.grid(column=2, row=6, sticky="W")
+    normal.grid(column=2, row=7, sticky="W")
+    overall_radio.grid(column=2, row=8, sticky="W")
     total_stock_radio.grid(column=2, row=9, sticky="W")
-
 
     radio_frame.grid(column=46, row=1)
 
@@ -410,7 +407,6 @@ def main():
         headings = ('EAN', 'Name', 'Quantity', 'Location', 'Expiration Date', 'Transaction Date')
 
         configure_treeview(columns, headings)
-        ean_to_compare = EAN.get()
 
         query = '''
             SELECT p.EAN, p.name, i.quantity, i.location, i.expiration_date, t.transaction_date
@@ -424,6 +420,7 @@ def main():
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
                     cursor.execute("USE wms")
+                    ean_to_compare = EAN.get()
                     cursor.execute(query, (ean_to_compare, ))
                     data = cursor.fetchall()
 
@@ -692,5 +689,6 @@ JOIN (
 
         operations.update()
         operations.pack()  
+    root.attributes('-fullscreen', True)
     root.mainloop()
 main()
