@@ -440,18 +440,34 @@ def main():
     copy_button.grid(row=2, column=0)  # Adjust the row and column as needed
 
     def actual_stock():
-        columns = ('EAN', "name", 'Qty Difference')
-        headings = ('EAN', "name", 'Qty Stock')
+        columns = ('EAN', "name", 'qty_difference', 'quantity_comparison')
+        headings = ('EAN', "name", 'Qty Stock','quantity_comparison')
 
         configure_treeview(columns, headings)
         
         query = '''
-            SELECT p.EAN, p.name, 
-                COALESCE(SUM(i.quantity), 0) - COALESCE(SUM(t.qty), 0) AS qty_difference
-            FROM products p
-            LEFT JOIN inventory i ON p.product_id = i.product_id
-            LEFT JOIN transactions t ON p.product_id = t.product_id
-            GROUP BY p.EAN, p.name;
+        SELECT 
+            p.EAN, 
+            p.name,
+            COALESCE(i.total_quantity, 0) - COALESCE(SUM(t.qty), 0) AS qty_difference,
+            CASE
+                WHEN COALESCE(i.total_quantity, 0) = COALESCE(SUM(t.qty), 0) THEN 'Match'
+                WHEN COALESCE(i.total_quantity, 0) > COALESCE(SUM(t.qty), 0) THEN 'Inventory Excess'
+                WHEN COALESCE(i.total_quantity, 0) < COALESCE(SUM(t.qty), 0) THEN 'Transaction Excess'
+                ELSE 'Unknown'
+            END AS quantity_comparison
+        FROM 
+            products p
+        LEFT JOIN 
+            (
+                SELECT product_id, SUM(quantity) AS total_quantity
+                FROM inventory
+                GROUP BY product_id
+            ) i ON p.product_id = i.product_id
+        LEFT JOIN 
+            transactions t ON p.product_id = t.product_id
+        GROUP BY 
+            p.EAN, p.name, i.total_quantity;
         '''
 
         try:
