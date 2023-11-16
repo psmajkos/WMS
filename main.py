@@ -105,6 +105,7 @@ def main():
     qty.set(1)
     name = tk.StringVar()
     waznosc = tk.StringVar()
+    location_var = tk.StringVar()
 
     def add_qty_to_db():
         get_ean = EAN.get()
@@ -126,12 +127,62 @@ def main():
 
         # Clear the entry field after inserting the value
         EAN_entry.delete(0, tk.END)
-        qty_entry.delete(0, tk.END)
+        # qty_entry.delete(0, tk.END)
         qty.set(1)
         name_entry.delete(0, tk.END)
         ref()
         actual_mode()
         actual_stock()
+
+    def put_data_into_inventory():
+        get_ean = EAN.get()
+        get_qty = qty.get()
+        
+        location = location_var.get()
+
+        if get_qty is None:
+            get_qty = 1
+
+        # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
+        product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
+        product_id_values = (get_ean, )
+
+        try:
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE wms")
+                    cursor.execute(product_id_query, product_id_values)
+                    product_id = cursor.fetchone()
+
+                    if product_id:
+                        # 'product_id' retrieved from 'products' table
+                        query = "INSERT INTO inventory(product_id, quantity, location, expiration_date, entry_date) VALUES (%s, %s, %s, %s, %s)"
+                        values = (product_id[0], get_qty, location, waznosc.get(), formatted_date)
+
+                        cursor.execute(query, values)
+                        my_conn.commit()
+                    else:
+                        print("Product not found.")
+
+        except mysql.connector.Error as err:
+            print(f"Error executing query: {err}")
+        finally:
+            # Close the cursor (optional, as you will close it when the application exits)
+            cursor.close()
+
+        # Clear the entry field after inserting the value
+        EAN_entry.delete(0, tk.END)
+        qty_entry.delete(0, tk.END)
+        qty.set(1)
+        name_entry.delete(0, tk.END)
+        ref()
+        actual_stock()
+
+    # Add a button for putting data into inventory
+    put_into_inventory_button = ttk.Button(main_frame, text="Put into Inventory", command=put_data_into_inventory)
+    put_into_inventory_button.grid(row=1, column=2)
+
+
 
     def packing():
         get_ean = EAN.get()
@@ -186,6 +237,10 @@ def main():
     waznosc_entry = DateEntry(main_frame, textvariable=waznosc, date_pattern='y/m/d')
     add_button = ttk.Button(main_frame, text="Dodaj do bazy", command=add_qty_to_db)
     send_button = ttk.Button(main_frame, text="Nadaj", command=packing)
+    location_label = ttk.Label(main_frame, text="Location")
+    location_combo = ttk.Combobox(main_frame, text="Location", textvariable=location_var)
+    location_combo['values'] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',]
+
 
     EAN_label.grid(row=0, column=0)
     EAN_entry.grid(row=0, column=1)
@@ -198,6 +253,10 @@ def main():
     waznosc_entry.grid(row=0, column=7)
     add_button.grid(row=1, column=0)
     send_button.grid(row=1, column=1)
+    location_label.grid(row=2, column=0)
+    location_combo.grid(row=2, column=1)
+    
+    
 
     def sell_mode():
         today_table()
@@ -211,6 +270,31 @@ def main():
         waznosc_label.config(text="Ważność")
         send_button.config(state="disabled")
         add_button.config(state="enabled")
+
+        waznosc_entry.config(state="enabled")
+        waznosc_label.config(state="enabled")
+        qty_entry.config(state="enabled")
+        qty_label.config(state="enabled")
+        location_combo.config(state="enabled")
+        location_label.config(state="enabled")
+        copy_button.config(state="enabled")
+        put_into_inventory_button.config(state="enabled")
+        # root.bind('<Return>', lambda event=None: add_qty_to_db())
+
+    def add_product_mode():
+        waznosc_label.config(text="Ważność")
+        send_button.config(state="disabled")
+        add_button.config(state="enabled")
+        waznosc_entry.config(state="disabled")
+        waznosc_label.config(state="disabled")
+        qty_entry.config(state="disabled")
+        qty_label.config(state="disabled")
+        location_combo.config(state="disabled")
+        location_label.config(state="disabled")
+        copy_button.config(state="disabled")
+        put_into_inventory_button.config(state="disabled")
+        name_entry.focus()
+
         root.bind('<Return>', lambda event=None: add_qty_to_db())
 
     def overall_mode():
@@ -248,24 +332,30 @@ def main():
     ).grid(row=2, column=3, ipadx=0, pady=10)
         
     r = IntVar()
+        
+    add_product_radio = Radiobutton(radio_frame, text="Add Product",
+                        variable=r, value=1,    highlightthickness=0, command=add_product_mode)
+    add_product_radio.grid(column=2, row=4, sticky="W")
+
     actual_radio = Radiobutton(radio_frame, text="Stock",
                         variable=r, value=0,    highlightthickness=0, command=actual_mode)
-    actual_radio.grid(column=2, row=6, sticky="W")
-
-    normal = Radiobutton(radio_frame, text="Wysyłka",
-                        variable=r, value=1,    highlightthickness=0, command=sell_mode)
-    normal.grid(column=2, row=4, sticky="W")
-
-    overall_radio = Radiobutton(radio_frame, text="Wszystkie wysłane",
-                        variable=r, value=2,    highlightthickness=0, command=overall_mode)
-    overall_radio.grid(column=2, row=7, sticky="W")
+    actual_radio.grid(column=2, row=5, sticky="W")
 
     find_by_ean_radio = Radiobutton(radio_frame, text="znajdz po EAN",
-                        variable=r, value=3,    highlightthickness=0, command=find_by_ean_mode)
-    find_by_ean_radio.grid(column=2, row=8, sticky="W")
+                        variable=r, value=4,    highlightthickness=0, command=find_by_ean_mode)
+    find_by_ean_radio.grid(column=2, row=6, sticky="W")
+
+    normal = Radiobutton(radio_frame, text="Wysyłka",
+                        variable=r, value=2,    highlightthickness=0, command=sell_mode)
+    normal.grid(column=2, row=7, sticky="W")
+
+    overall_radio = Radiobutton(radio_frame, text="Wszystkie wysłane",
+                        variable=r, value=3,    highlightthickness=0, command=overall_mode)
+    overall_radio.grid(column=2, row=8, sticky="W")
+
 
     total_stock_radio = Radiobutton(radio_frame, text="wszystkie",
-                        variable=r, value=4,    highlightthickness=0, command=total_stock_mode)
+                        variable=r, value=5,    highlightthickness=0, command=total_stock_mode)
     total_stock_radio.grid(column=2, row=9, sticky="W")
 
 
@@ -495,35 +585,85 @@ def main():
 
     def base_stock():
         date = waznosc.get()
-        columns = ('EAN', 'Name', 'Quantity', 'Location', 'Expiration Date', 'Qty Difference', 'Entry Date')
-        headings = ('EAN', 'Name', 'Quantity', 'Location', 'Expiration Date', 'Qty Difference', 'Date')
+        columns = ('EAN', 'Name', 'Location', 'Entry qty', 'Qty Sell', 'Remaining Quantity', 'Entry Date')
+        headings = ('EAN', 'Name', 'Location', 'Entry qty', 'Qty Sell','Remaining Quantity', ' Entry Date')
 
         configure_treeview(columns, headings)
+        date = waznosc.get()
 
         query = '''
-                SELECT
-                    p.EAN,
-                    p.name,
-                    MAX(i.quantity) AS quantity,
-                    MAX(i.location) AS location,
-                    MAX(i.expiration_date) AS expiration_date,
-                    SUM(COALESCE(i.quantity, 0) - COALESCE(t.qty, 0)) AS qty_difference,
-                    MAX(i.entry_date) AS entry_date
-                FROM
-                    products p
-                LEFT JOIN
-                    inventory i ON p.product_id = i.product_id
-                LEFT JOIN
-                    transactions t ON p.product_id = t.product_id
-                GROUP BY
-                    p.EAN, p.name
-                '''
+SELECT
+    q1.EAN,
+    q1.name,
+    q1.location,
+    q2.total_quantity,
+    q1.qty_difference,
+    q2.total_quantity - q1.qty_difference AS remaining_quantity,
+    q2.entry_date
+FROM (
+    SELECT
+        p.EAN,
+        p.name,
+        MAX(i.quantity) AS quantity,
+        MAX(i.location) AS location,
+        MAX(i.expiration_date) AS expiration_date,
+        SUM(COALESCE(i.quantity, 0) - COALESCE(t.qty, 0)) AS qty_difference,
+        MAX(i.entry_date) AS entry_date
+    FROM
+        products p
+    LEFT JOIN
+        inventory i ON p.product_id = i.product_id
+    LEFT JOIN
+        transactions t ON p.product_id = t.product_id
+    GROUP BY
+        p.EAN, p.name
+) q1
+JOIN (
+    SELECT
+        p.EAN,
+        p.name,
+        i.entry_date,
+        SUM(COALESCE(i.quantity, 0)) AS total_quantity
+    FROM
+        products p
+    LEFT JOIN
+        inventory i ON p.product_id = i.product_id
+    LEFT JOIN
+        transactions t ON p.product_id = t.product_id
+    WHERE
+        i.entry_date = %s
+    GROUP BY
+        p.EAN, p.name, i.entry_date
+    ORDER BY
+        p.EAN, i.entry_date
+) q2 ON q1.EAN = q2.EAN AND q1.name = q2.name;
+
+'''
+
+        # query = '''
+        #         SELECT
+        #             p.EAN,
+        #             p.name,
+        #             MAX(i.quantity) AS quantity,
+        #             MAX(i.location) AS location,
+        #             MAX(i.expiration_date) AS expiration_date,
+        #             SUM(COALESCE(i.quantity, 0) - COALESCE(t.qty, 0)) AS qty_difference,
+        #             MAX(i.entry_date) AS entry_date
+        #         FROM
+        #             products p
+        #         LEFT JOIN
+        #             inventory i ON p.product_id = i.product_id
+        #         LEFT JOIN
+        #             transactions t ON p.product_id = t.product_id
+        #         GROUP BY
+        #             p.EAN, p.name
+        #         '''
 
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
                     cursor.execute("USE wms")
-                    cursor.execute(query)
+                    cursor.execute(query, (date, ))
                     data = cursor.fetchall()
 
             # Clear existing items in the Treeview
