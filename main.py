@@ -1,6 +1,6 @@
 import mysql.connector
 import tkinter as tk
-from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, messagebox,Text
+from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, messagebox,Text, Checkbutton
 from tkcalendar import DateEntry
 from datetime import datetime
 import babel.numbers
@@ -9,7 +9,7 @@ def get_conn():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd="Pcf85830"
+        passwd=""
     )
 
 my_conn = get_conn()
@@ -65,6 +65,8 @@ def main():
     name = tk.StringVar()
     waznosc = tk.StringVar()
     location_var = tk.StringVar()
+    date = IntVar()
+    wdate = IntVar()
 
     EAN.set("")
     qty.set(1)
@@ -75,7 +77,7 @@ def main():
         name_get = name.get()
 
         # Check if the EAN and name are not empty
-        if not get_ean or not name_get:
+        if not get_ean:
             messagebox.showerror("Error", "EAN and Name are required")
             return
         
@@ -126,53 +128,118 @@ def main():
         # actual_stock()
 
     def put_product_to_inventory():
-        get_ean = EAN.get()
-        get_qty = qty.get()
-        
-        location = location_var.get()
+        # date = IntVar()
+        # wdate = IntVar()
+        date_choose = Checkbutton(upper_gui, variable=date, onvalue=1, offvalue=0)
+        wdate_choose = Checkbutton(upper_gui, variable=wdate, onvalue=1, offvalue=0)
+        date_choose.grid(row=1, column=1)
+        wdate_choose.grid(row=2, column=1)
 
-        if get_qty is None:
-            get_qty = 1
-        
-        # Check if the EAN and name are not empty
-        if not get_ean or not get_qty:
-            messagebox.showerror("Error", "EAN and Qty are required")
-            return
-        
-        # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
-        product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
-        product_id_values = (get_ean, )
+        if (date.get() == 1) and (wdate.get() == 0):
+            with_date()
+        elif (date.get() == 0) and (wdate.get() == 1):
+            put_product_to_inventory_without_dates()
+        else:
+            messagebox.showerror("Error", "Choose mode")
 
-        try:
-            with get_conn() as my_conn:
-                with my_conn.cursor() as cursor:
-                    cursor.execute("USE wms")
-                    cursor.execute(product_id_query, product_id_values)
-                    product_id = cursor.fetchone()
+        def with_date():
+            get_ean = EAN.get()
+            get_qty = qty.get()
+            
+            location = location_var.get()
 
-                    if product_id:
-                        # 'product_id' retrieved from 'products' table
-                        query = "INSERT INTO inventory(product_id, quantity, location, expiration_date, entry_date) VALUES (%s, %s, %s, %s, %s)"
-                        values = (product_id[0], get_qty, location, waznosc.get(), formatted_date)
+            if get_qty is None:
+                get_qty = 1
+            
+            # Check if the EAN and name are not empty
+            if not get_ean or not get_qty:
+                messagebox.showerror("Error", "EAN and Qty are required")
+                return
+            
+            # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
+            product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
+            product_id_values = (get_ean, )
 
-                        cursor.execute(query, values)
-                        my_conn.commit()
-                    else:
-                        print("Product not found.")
+            try:
+                with get_conn() as my_conn:
+                    with my_conn.cursor() as cursor:
+                        cursor.execute("USE wms")
+                        cursor.execute(product_id_query, product_id_values)
+                        product_id = cursor.fetchone()
 
-        except mysql.connector.Error as err:
-            print(f"Error executing query: {err}")
-        finally:
-            # Close the cursor (optional, as you will close it when the application exits)
-            cursor.close()
+                        if product_id:
+                            # 'product_id' retrieved from 'products' table
+                            query = "INSERT INTO inventory(product_id, quantity, location, expiration_date, entry_date) VALUES (%s, %s, %s, %s, %s)"
+                            values = (product_id[0], get_qty, location, waznosc.get(), formatted_date)
 
-        # Clear the entry field after inserting the value
-        EAN_entry.delete(0, tk.END)
-        qty_entry.delete(0, tk.END)
-        qty.set(1)
-        name_entry.delete(0, tk.END)
-        ref()
-        actual_stock()
+                            cursor.execute(query, values)
+                            my_conn.commit()
+                        else:
+                            print("Product not found.")
+
+            except mysql.connector.Error as err:
+                print(f"Error executing query: {err}")
+            finally:
+                # Close the cursor (optional, as you will close it when the application exits)
+                cursor.close()
+
+            # Clear the entry field after inserting the value
+            EAN_entry.delete(0, tk.END)
+            qty_entry.delete(0, tk.END)
+            qty.set(1)
+            name_entry.delete(0, tk.END)
+            ref()
+            actual_stock()
+
+        def put_product_to_inventory_without_dates():
+            get_ean = EAN.get()
+            get_qty = qty.get()
+            
+            location = location_var.get()
+
+            if get_qty is None:
+                get_qty = 1
+            
+            # Check if the EAN and name are not empty
+            if not get_ean or not get_qty:
+                messagebox.showerror("Error", "EAN and Qty are required")
+                return
+            
+            # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
+            product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
+            product_id_values = (get_ean, )
+
+            try:
+                with get_conn() as my_conn:
+                    with my_conn.cursor() as cursor:
+                        cursor.execute("USE wms")
+                        cursor.execute(product_id_query, product_id_values)
+                        product_id = cursor.fetchone()
+
+                        if product_id:
+                            # 'product_id' retrieved from 'products' table
+                            query = "INSERT INTO inventory(product_id, quantity, location, entry_date) VALUES (%s, %s, %s, %s)"
+                            values = (product_id[0], get_qty, location, formatted_date)
+
+                            cursor.execute(query, values)
+                            my_conn.commit()
+                        else:
+                            print("Product not found.")
+
+            except mysql.connector.Error as err:
+                print(f"Error executing query: {err}")
+            finally:
+                # Close the cursor (optional, as you will close it when the application exits)
+                cursor.close()
+
+            # Clear the entry field after inserting the value
+            EAN_entry.delete(0, tk.END)
+            qty_entry.delete(0, tk.END)
+            qty.set(1)
+            name_entry.delete(0, tk.END)
+            ref()
+            actual_stock()
+
 
     def packing():
         get_ean = EAN.get()
@@ -238,10 +305,17 @@ def main():
     location_combo = ttk.Combobox(upper_gui, text="Location", textvariable=location_var)
     location_combo['values'] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',]
     add_button = ttk.Button(upper_gui, text="Dodaj do bazy", command=add_product)
+    # date_choose = Radiobutton(radio_frame, text="krotka data",
+    #             variable=r, value=6, highlightthickness=0, command=expiration_mode)
+
+
+    root.bind('<Return>',lambda event:add_product())
 
     # Add a button for putting data into inventory
     put_into_inventory_button = ttk.Button(upper_gui, text="Put into Inventory", command=put_product_to_inventory)
     put_into_inventory_button.pack()
+
+    
 
     EAN_label.pack()
     EAN_entry.pack()
@@ -258,6 +332,7 @@ def main():
     location_label.pack()
     location_combo.pack()
     add_button.pack()
+    # date_choose.pack()
 
     def show_widgets(widgets):
         for widget in widgets:
@@ -286,8 +361,6 @@ def main():
     def find_by_ean_mode_widgets():
         show_widgets([copy_button, EAN_label, EAN_entry])
         hide_widgets([name_entry, name_label, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button, add_button])
-    
-
 
     def total_stock_mode_widgets():
         show_widgets([copy_button])
