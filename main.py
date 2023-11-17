@@ -78,24 +78,47 @@ def main():
         if not get_ean or not name_get:
             messagebox.showerror("Error", "EAN and Name are required")
             return
+        
+        # Check if the EAN already exists
+        ean_exists_query = "SELECT COUNT(*) FROM products WHERE EAN = %s"
+        ean_exists_values = (get_ean, )
 
-        query = "INSERT INTO products(EAN, name) VALUES (%s, %s)"
-        values = (get_ean, name_get, )
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
                     cursor.execute("USE wms")
-                    cursor.execute(query, values)
+                    cursor.execute(ean_exists_query, ean_exists_values)
+                    ean_count = cursor.fetchone()[0]
+
+                    if ean_count > 0:
+                        messagebox.showerror("Error", "EAN already exists")
+                        return
+
+        except mysql.connector.Error as err:
+            print(f"Error executing query: {err}")
+            return
+        finally:
+            cursor.close()
+
+        # If EAN doesn't exist, proceed with the insertion
+        insert_query = "INSERT INTO products(EAN, name) VALUES (%s, %s)"
+        insert_values = (get_ean, name_get)
+
+        try:
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE wms")
+                    cursor.execute(insert_query, insert_values)
                     my_conn.commit()
 
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
+            return
         finally:
             cursor.close()
 
         # Clear the entry field after inserting the value
         EAN_entry.delete(0, tk.END)
-        # qty_entry.delete(0, tk.END)
         qty.set(1)
         name_entry.delete(0, tk.END)
         ref()
@@ -110,7 +133,12 @@ def main():
 
         if get_qty is None:
             get_qty = 1
-
+        
+        # Check if the EAN and name are not empty
+        if not get_ean or not get_qty:
+            messagebox.showerror("Error", "EAN and Qty are required")
+            return
+        
         # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
         product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
         product_id_values = (get_ean, )
@@ -152,6 +180,12 @@ def main():
 
         if get_qty is None:
             get_qty = 1
+
+        # Check if the EAN and name are not empty
+        if not get_ean:
+            messagebox.showerror("Error", "EAN are required")
+            return
+        
 
         # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
         product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
