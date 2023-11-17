@@ -11,6 +11,12 @@ def get_conn():
         passwd="Pcf85830"
     )
 
+# Get the current date
+current_date = datetime.now()
+
+# Format the date as 'YYYY-MM-DD'
+formatted_date = current_date.strftime('%Y-%m-%d')
+
 my_conn = get_conn()
 cursor = my_conn.cursor()
 
@@ -88,16 +94,10 @@ def main():
         for col, heading in zip(columns, headings):
             operations.heading(col, text=heading)
 
-    # Get the current date
-    current_date = datetime.now()
-
-    # Format the date as 'YYYY-MM-DD'
-    formatted_date = current_date.strftime('%Y-%m-%d')
-
     root = tk.Tk()
     root.title("Product Inventory")
 
-    main_frame = tk.Frame(root)
+    # main_frame = tk.Frame(root, bd=2, relief=SUNKEN)
 
     EAN = tk.IntVar()
     EAN.set("")
@@ -108,7 +108,6 @@ def main():
     location_var = tk.StringVar()
 
     def add_qty_to_db():
-
         get_ean = EAN.get()
         name_get = name.get()
 
@@ -186,10 +185,19 @@ def main():
         ref()
         actual_stock()
 
-    # Add a button for putting data into inventory
-    put_into_inventory_button = ttk.Button(main_frame, text="Put into Inventory", command=put_data_into_inventory)
-    put_into_inventory_button.grid(row=1, column=2)
+    def copy_ean():
+        selected_item = operations.selection()
+        if selected_item:
+            ean_index = 0  # Assuming EAN is the first column in your Treeview
+            ean_value = operations.item(selected_item, 'values')[ean_index]
+            root.clipboard_clear()
+            root.clipboard_append(ean_value)
+            root.update()
 
+
+        # Create a button for copying EAN
+    copy_button = ttk.Button(root, text="Copy EAN", command=copy_ean)
+    copy_button.pack(side=tk.RIGHT) # Adjust the row and column as needed
 
 
     def packing():
@@ -234,54 +242,62 @@ def main():
         ref()
         sell_mode()
 
+    upper_gui = tk.Frame(root, width=1920, height=500, bd=2, relief=SUNKEN)
 
-    EAN_label = tk.Label(main_frame, text="EAN: ")
-    EAN_entry = ttk.Entry(main_frame, textvariable=EAN)
-    qty_entry = ttk.Entry(main_frame, textvariable=qty, width=3)
-    qty_label = tk.Label(main_frame, text="Qty: ", width=7)
-    name_label = tk.Label(main_frame, text="Name: ", width=10)
-    name_entry = ttk.Entry(main_frame, textvariable=name)
-    waznosc_label = tk.Label(main_frame, text="Ważność", width=10)
-    waznosc_entry = DateEntry(main_frame, textvariable=waznosc, date_pattern='y/m/d')
-    add_button = ttk.Button(main_frame, text="Dodaj do bazy", command=add_qty_to_db)
-    send_button = ttk.Button(main_frame, text="Nadaj", command=packing)
-    location_label = ttk.Label(main_frame, text="Location")
-    location_combo = ttk.Combobox(main_frame, text="Location", textvariable=location_var)
+    EAN_label = tk.Label(upper_gui, text="EAN: ")
+    EAN_entry = ttk.Entry(upper_gui, textvariable=EAN)
+    qty_entry = ttk.Entry(upper_gui, textvariable=qty, width=3)
+    qty_label = tk.Label(upper_gui, text="Qty: ", width=7)
+    name_label = tk.Label(upper_gui, text="Name: ", width=10)
+    name_entry = ttk.Entry(upper_gui, textvariable=name)
+    waznosc_label = tk.Label(upper_gui, text="Ważność", width=10)
+    waznosc_entry = DateEntry(upper_gui, textvariable=waznosc, date_pattern='y/m/d')
+    
+    send_button = ttk.Button(upper_gui, text="Nadaj", command=packing)
+    location_label = ttk.Label(upper_gui, text="Location")
+    location_combo = ttk.Combobox(upper_gui, text="Location", textvariable=location_var)
     location_combo['values'] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',]
+    add_button = ttk.Button(upper_gui, text="Dodaj do bazy", command=add_qty_to_db)
+
+        # Add a button for putting data into inventory
+    put_into_inventory_button = ttk.Button(upper_gui, text="Put into Inventory", command=put_data_into_inventory)
+    put_into_inventory_button.pack()
 
 
-    EAN_label.grid(row=0, column=0)
-    EAN_entry.grid(row=0, column=1)
+    EAN_label.pack(anchor=tk.W)
+    EAN_entry.pack(anchor=tk.W)
+    name_label.pack(anchor=tk.W)
+    name_entry.pack(anchor=tk.W)
     EAN_entry.focus_set()
-    qty_label.grid(row=0, column=2)
-    qty_entry.grid(row=0, column=3)
-    name_label.grid(row=0, column=4)
-    name_entry.grid(row=0, column=5)
-    waznosc_label.grid(row=0, column=6)
-    waznosc_entry.grid(row=0, column=7)
-    add_button.grid(row=1, column=0)
-    send_button.grid(row=1, column=1)
-    location_label.grid(row=2, column=0)
-    location_combo.grid(row=2, column=1)
+    qty_label.pack(anchor=tk.E)
+    qty_entry.pack(anchor=tk.E)
+
+    waznosc_label.pack(anchor=tk.E)
+    waznosc_entry.pack(anchor=tk.E)
+
+    send_button.pack()
+    location_label.pack(anchor=tk.W)
+    location_combo.pack(anchor=tk.W)
+    add_button.pack()
 
     def show_widgets(widgets):
         for widget in widgets:
-            widget.grid()
+            widget.pack()
 
     def hide_widgets(widgets):
         for widget in widgets:
-            widget.grid_remove()
+            widget.pack_forget()
 
     def sell_mode_widgets():
-        show_widgets([send_button])
-        hide_widgets([add_button, waznosc_label, waznosc_entry, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button])
+        show_widgets([send_button, copy_button])
+        hide_widgets([add_button, waznosc_label, waznosc_entry, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button, name_entry,name_label])
 
     def actual_mode_widgets():
-        show_widgets([add_button, waznosc_label, waznosc_entry, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button])
-        hide_widgets([send_button])
+        show_widgets([add_button, waznosc_label, waznosc_entry, qty_entry, qty_label, location_combo, location_label, copy_button])
+        hide_widgets([send_button, put_into_inventory_button])
 
     def add_product_mode_widgets():
-        show_widgets([add_button])
+        show_widgets([EAN_label, EAN_entry, add_button])
         hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button])
 
     def overall_mode_widgets():
@@ -293,7 +309,8 @@ def main():
         hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button])
 
     def total_stock_mode_widgets():
-        hide_widgets([add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button])
+        show_widgets([copy_button])
+        hide_widgets([EAN_entry, EAN_label, name_entry, name_label ,add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button])
     
     def sell_mode():
         sell_mode_widgets()
@@ -319,10 +336,10 @@ def main():
         total_stock_mode_widgets()
         base_stock()
 
-    radio_frame = tk.Frame(main_frame, bd=2, relief=SUNKEN)
+    radio_frame = tk.Frame(root, bd=2, relief=SUNKEN)
 
     mode_of_transportation = ttk.Label(radio_frame, text="Model pracy: ")
-    mode_of_transportation.grid(column=2, row=1)
+    mode_of_transportation.pack(side=tk.RIGHT)
 
 
 # horizontal separator
@@ -333,7 +350,7 @@ def main():
         class_= ttk.Separator,
         takefocus= 1,
         cursor='plus'    
-    ).grid(row=2, column=3, ipadx=0, pady=10)
+    ).pack()
         
     r = IntVar()
     # Modify your radio buttons' commands to call the corresponding mode functions
@@ -349,18 +366,33 @@ def main():
                         variable=r, value=3, highlightthickness=0, command=overall_mode)
     total_stock_radio = Radiobutton(radio_frame, text="wszystkie",
                         variable=r, value=5, highlightthickness=0, command=total_stock_mode)
-    add_product_radio.grid(column=2, row=4, sticky="W")
-    actual_radio.grid(column=2, row=5, sticky="W")
-    find_by_ean_radio.grid(column=2, row=6, sticky="W")
-    normal.grid(column=2, row=7, sticky="W")
-    overall_radio.grid(column=2, row=8, sticky="W")
-    total_stock_radio.grid(column=2, row=9, sticky="W")
+    add_product_radio.pack()
+    actual_radio.pack()
+    find_by_ean_radio.pack()
+    normal.pack()
+    overall_radio.pack()
+    total_stock_radio.pack()
 
-    radio_frame.grid(column=46, row=1)
+    radio_frame.pack(side=tk.RIGHT)
 
 
-    operations_frame = Frame(root)
-    operations_frame.grid(row=4, column=0)
+    operations_frame = Frame(root, bd=2, width=1920, height=400, relief=SUNKEN)
+    operations_frame.pack(side='bottom')
+    operations_frame.pack_propagate(False)
+
+    # def copy_ean():
+    #     selected_item = operations.selection()
+    #     if selected_item:
+    #         ean_index = 0  # Assuming EAN is the first column in your Treeview
+    #         ean_value = operations.item(selected_item, 'values')[ean_index]
+    #         root.clipboard_clear()
+    #         root.clipboard_append(ean_value)
+    #         root.update()
+
+
+    #     # Create a button for copying EAN
+    # copy_button = ttk.Button(operations_frame, text="Copy EAN", command=copy_ean)
+    # copy_button.pack(side=tk.BOTTOM) # Adjust the row and column as needed
 
     operations = ttk.Treeview(operations_frame, height=20)
 
@@ -512,20 +544,6 @@ def main():
                 # Close the cursor
                 cursor.close()
                 
-
-    def copy_ean():
-        selected_item = operations.selection()
-        if selected_item:
-            ean_index = 0  # Assuming EAN is the first column in your Treeview
-            ean_value = operations.item(selected_item, 'values')[ean_index]
-            root.clipboard_clear()
-            root.clipboard_append(ean_value)
-            root.update()
-
-    # Create a button for copying EAN
-    copy_button = ttk.Button(root, text="Copy EAN", command=copy_ean)
-    copy_button.grid(row=2, column=0)  # Adjust the row and column as needed
-
     def actual_stock():
         columns = ('EAN', "name", 'qty_difference', 'quantity_comparison')
         headings = ('EAN', "name", 'Qty Stock','quantity_comparison')
@@ -678,9 +696,13 @@ JOIN (
         finally:
             cursor.close()
 
-
-    main_frame.grid(row=0)
+    upper_gui.pack(side=tk.TOP)
+    upper_gui.pack_propagate(False)
+    # main_frame.pack()
+    # main_frame.pack_propagate(False)
     operations.pack()
+    operations.pack(expand=tk.YES, fill=tk.BOTH)
+    # operations_frame.pack_propagate(False)
     actual_stock()
 
     def ref():
