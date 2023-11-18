@@ -9,7 +9,7 @@ def get_conn():
     return mysql.connector.connect(
         host="localhost",
         user="root",
-        passwd=""
+        passwd="Pcf85830"
     )
 
 my_conn = get_conn()
@@ -65,12 +65,11 @@ def main():
     name = tk.StringVar()
     waznosc = tk.StringVar()
     location_var = tk.StringVar()
-    date = IntVar()
-    wdate = IntVar()
+    include_expiration_var = IntVar()
+    include_expiration_var.set(1)  # Set default to include expiration
 
     EAN.set("")
     qty.set(1)
-
 
     def add_product():
         get_ean = EAN.get()
@@ -127,118 +126,57 @@ def main():
         # realtime_stock()
         # actual_stock()
 
-    def put_product_to_inventory():
-        # date = IntVar()
-        # wdate = IntVar()
-        date_choose = Checkbutton(upper_gui, variable=date, onvalue=1, offvalue=0)
-        wdate_choose = Checkbutton(upper_gui, variable=wdate, onvalue=1, offvalue=0)
-        date_choose.grid(row=1, column=1)
-        wdate_choose.grid(row=2, column=1)
+    def put_product_to_inventory(include_expiration=True):
+        get_ean = EAN.get()
+        get_qty = qty.get()
+        location = location_var.get()
 
-        if (date.get() == 1) and (wdate.get() == 0):
-            with_date()
-        elif (date.get() == 0) and (wdate.get() == 1):
-            put_product_to_inventory_without_dates()
-        else:
-            messagebox.showerror("Error", "Choose mode")
+        if get_qty is None:
+            get_qty = 1
 
-        def with_date():
-            get_ean = EAN.get()
-            get_qty = qty.get()
-            
-            location = location_var.get()
+        # Check if the EAN and name are not empty
+        if not get_ean or not get_qty:
+            messagebox.showerror("Error", "EAN and Qty are required")
+            return
 
-            if get_qty is None:
-                get_qty = 1
-            
-            # Check if the EAN and name are not empty
-            if not get_ean or not get_qty:
-                messagebox.showerror("Error", "EAN and Qty are required")
-                return
-            
-            # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
-            product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
-            product_id_values = (get_ean, )
+        # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
+        product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
+        product_id_values = (get_ean, )
 
-            try:
-                with get_conn() as my_conn:
-                    with my_conn.cursor() as cursor:
-                        cursor.execute("USE wms")
-                        cursor.execute(product_id_query, product_id_values)
-                        product_id = cursor.fetchone()
+        try:
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE wms")
+                    cursor.execute(product_id_query, product_id_values)
+                    product_id = cursor.fetchone()
 
-                        if product_id:
-                            # 'product_id' retrieved from 'products' table
+                    if product_id:
+                        # 'product_id' retrieved from 'products' table
+                        if include_expiration:
                             query = "INSERT INTO inventory(product_id, quantity, location, expiration_date, entry_date) VALUES (%s, %s, %s, %s, %s)"
                             values = (product_id[0], get_qty, location, waznosc.get(), formatted_date)
-
-                            cursor.execute(query, values)
-                            my_conn.commit()
                         else:
-                            print("Product not found.")
-
-            except mysql.connector.Error as err:
-                print(f"Error executing query: {err}")
-            finally:
-                # Close the cursor (optional, as you will close it when the application exits)
-                cursor.close()
-
-            # Clear the entry field after inserting the value
-            EAN_entry.delete(0, tk.END)
-            qty_entry.delete(0, tk.END)
-            qty.set(1)
-            name_entry.delete(0, tk.END)
-            ref()
-            actual_stock()
-
-        def put_product_to_inventory_without_dates():
-            get_ean = EAN.get()
-            get_qty = qty.get()
-            
-            location = location_var.get()
-
-            if get_qty is None:
-                get_qty = 1
-            
-            # Check if the EAN and name are not empty
-            if not get_ean or not get_qty:
-                messagebox.showerror("Error", "EAN and Qty are required")
-                return
-            
-            # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
-            product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
-            product_id_values = (get_ean, )
-
-            try:
-                with get_conn() as my_conn:
-                    with my_conn.cursor() as cursor:
-                        cursor.execute("USE wms")
-                        cursor.execute(product_id_query, product_id_values)
-                        product_id = cursor.fetchone()
-
-                        if product_id:
-                            # 'product_id' retrieved from 'products' table
                             query = "INSERT INTO inventory(product_id, quantity, location, entry_date) VALUES (%s, %s, %s, %s)"
                             values = (product_id[0], get_qty, location, formatted_date)
 
-                            cursor.execute(query, values)
-                            my_conn.commit()
-                        else:
-                            print("Product not found.")
+                        cursor.execute(query, values)
+                        my_conn.commit()
+                    else:
+                        print("Product not found.")
 
-            except mysql.connector.Error as err:
-                print(f"Error executing query: {err}")
-            finally:
-                # Close the cursor (optional, as you will close it when the application exits)
-                cursor.close()
+        except mysql.connector.Error as err:
+            print(f"Error executing query: {err}")
+        finally:
+            # Close the cursor (optional, as you will close it when the application exits)
+            cursor.close()
 
-            # Clear the entry field after inserting the value
-            EAN_entry.delete(0, tk.END)
-            qty_entry.delete(0, tk.END)
-            qty.set(1)
-            name_entry.delete(0, tk.END)
-            ref()
-            actual_stock()
+        # Clear the entry field after inserting the value
+        EAN_entry.delete(0, tk.END)
+        qty_entry.delete(0, tk.END)
+        qty.set(1)
+        name_entry.delete(0, tk.END)
+        ref()
+        actual_stock()
 
 
     def packing():
@@ -252,7 +190,6 @@ def main():
         if not get_ean:
             messagebox.showerror("Error", "EAN are required")
             return
-        
 
         # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
         product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
@@ -289,7 +226,21 @@ def main():
         ref()
         sent_today_mode()
 
+        # Function to handle the checkbutton state change
+    def handle_expiration_check():
+        include_expiration = include_expiration_var.get()
+        if include_expiration:
+            put_into_inventory_button.config(command=lambda: put_product_to_inventory())
+        else:
+            put_into_inventory_button.config(command=lambda: put_product_to_inventory(include_expiration=False))
+
     upper_gui = tk.Frame(root, width=1920, height=500, bd=2, relief=SUNKEN)
+
+    # Create the Checkbutton
+    expiration_checkbutton = Checkbutton(upper_gui, text="Include Expiration Date", variable=include_expiration_var)
+
+    # Attach the function to the checkbutton state change
+    expiration_checkbutton.config(command=handle_expiration_check)
 
     EAN_label = tk.Label(upper_gui, text="EAN: ")
     EAN_entry = ttk.Entry(upper_gui, textvariable=EAN)
@@ -305,17 +256,14 @@ def main():
     location_combo = ttk.Combobox(upper_gui, text="Location", textvariable=location_var)
     location_combo['values'] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',]
     add_button = ttk.Button(upper_gui, text="Dodaj do bazy", command=add_product)
-    # date_choose = Radiobutton(radio_frame, text="krotka data",
-    #             variable=r, value=6, highlightthickness=0, command=expiration_mode)
-
-
-    root.bind('<Return>',lambda event:add_product())
 
     # Add a button for putting data into inventory
     put_into_inventory_button = ttk.Button(upper_gui, text="Put into Inventory", command=put_product_to_inventory)
     put_into_inventory_button.pack()
 
-    
+    root.bind('<Return>',lambda event:put_product_to_inventory())
+
+    root.bind('<Return>',lambda event:add_product())
 
     EAN_label.pack()
     EAN_entry.pack()
@@ -332,7 +280,7 @@ def main():
     location_label.pack()
     location_combo.pack()
     add_button.pack()
-    # date_choose.pack()
+    expiration_checkbutton.pack()
 
     def show_widgets(widgets):
         for widget in widgets:
@@ -344,27 +292,27 @@ def main():
 
     def sent_today_widgets():
         show_widgets([send_button, copy_button, EAN_label, EAN_entry])
-        hide_widgets([add_button, waznosc_label, waznosc_entry, qty_label, qty_entry, location_label, location_combo, put_into_inventory_button, name_entry, name_label])
+        hide_widgets([add_button, waznosc_label, waznosc_entry, qty_label, qty_entry, location_label, location_combo, put_into_inventory_button, name_entry, name_label, expiration_checkbutton])
 
     def actual_mode_widgets():
-        show_widgets([qty_label, qty_entry, waznosc_label, waznosc_entry, location_label, location_combo, copy_button, put_into_inventory_button])
+        show_widgets([qty_label, qty_entry, waznosc_label, waznosc_entry, location_label, location_combo, copy_button, put_into_inventory_button, expiration_checkbutton])
         hide_widgets([send_button, name_entry, name_label, add_button])
 
     def add_product_mode_widgets():
         show_widgets([EAN_label, EAN_entry, name_label, name_entry, add_button])
-        hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button])
+        hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button, expiration_checkbutton])
 
     def overall_mode_widgets():
         show_widgets([send_button])
-        hide_widgets([add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button])
+        hide_widgets([add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button, expiration_checkbutton])
 
     def find_by_ean_mode_widgets():
         show_widgets([copy_button, EAN_label, EAN_entry])
-        hide_widgets([name_entry, name_label, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button, add_button])
+        hide_widgets([name_entry, name_label, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button, add_button, expiration_checkbutton])
 
     def total_stock_mode_widgets():
         show_widgets([copy_button])
-        hide_widgets([EAN_entry, EAN_label, name_entry, name_label ,add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button])
+        hide_widgets([EAN_entry, EAN_label, name_entry, name_label ,add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
     
     def sent_today_mode():
         sent_today_widgets()
@@ -376,8 +324,6 @@ def main():
 
     def add_product_mode():
         add_product_mode_widgets()
-        # operations.destroy()
-        # add_qty_to_db()
 
     def overall_mode():
         overall_mode_widgets()
@@ -773,7 +719,6 @@ def main():
     upper_gui.pack_propagate(False)
     operations.pack()
     operations.pack(expand=tk.YES, fill=tk.BOTH)
-    # actual_stock()
 
     def ref():
         for item in operations.get_children():
