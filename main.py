@@ -303,7 +303,7 @@ def main():
         hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button, expiration_checkbutton])
 
     def overall_mode_widgets():
-        show_widgets([send_button])
+        show_widgets([send_button, waznosc_label, waznosc_entry])
         hide_widgets([add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button, expiration_checkbutton])
 
     def find_by_ean_mode_widgets():
@@ -311,8 +311,12 @@ def main():
         hide_widgets([name_entry, name_label, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button, add_button, expiration_checkbutton])
 
     def total_stock_mode_widgets():
-        show_widgets([copy_button])
-        hide_widgets([EAN_entry, EAN_label, name_entry, name_label ,add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
+        show_widgets([copy_button, waznosc_label,waznosc_entry])
+        hide_widgets([EAN_entry, EAN_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
+
+    def show_eveything_widgets():
+        hide_widgets([copy_button, waznosc_label,waznosc_entry])
+        show_widgets([copy_button, waznosc_label, waznosc_entry, EAN_entry, EAN_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
     
     def sent_today_mode():
         sent_today_widgets()
@@ -337,6 +341,10 @@ def main():
         total_stock_mode_widgets()
         base_stock()
 
+    def show_eveything_mode():
+        show_eveything_widgets()
+        show_eveything()
+
     def expiration_mode():
         display_expirations()
 
@@ -350,6 +358,53 @@ def main():
             root.clipboard_clear()
             root.clipboard_append(ean_value)
             root.update()
+    # def edit_row():
+    #     selected_item = operations.selection()
+    #     if selected_item:
+    #         ean_index = 0  # Assuming EAN is the first column in your Treeview
+    #         name = 1
+    #         qty = 2
+    #         loc = 3
+    #         exp = 4
+    #         entry = 5
+    #         ean_value = operations.item(selected_item, 'values')[ean_index]
+    #         name_ = operations.item(selected_item, 'values')[name]
+    #         quantity = operations.item(selected_item, 'values')[qty]
+    #         location = operations.item(selected_item, 'values')[loc]
+    #         exp_date = operations.item(selected_item, 'values')[exp]
+    #         entry_date = operations.item(selected_item, 'values')[entry]
+    #         print(ean_value, name_, quantity, location, exp_date, entry_date)
+
+    #         try:
+    #             with get_conn() as my_conn:
+    #                 with my_conn.cursor() as cursor:
+    #                     cursor.execute("USE wms")
+                        
+    #                     # Assuming 'ean_value' corresponds to 'EAN' in the 'products' table
+    #                     product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
+    #                     product_id_values = (ean_value, )
+
+    #                     cursor.execute(product_id_query, product_id_values)
+    #                     product_id = cursor.fetchone()
+
+    #                     if product_id:
+    #                         # 'product_id' retrieved from 'products' table
+    #                         query = """UPDATE inventory 
+    #                                 SET quantity = %s, location = %s, expiration_date = %s 
+    #                                 WHERE product_id = %s;"""
+    #                         values = (quantity, location, exp_date, product_id[0])
+
+    #                         cursor.execute(query, values)
+    #                         my_conn.commit()
+    #                         print("Row updated successfully.")
+    #                     else:
+    #                         print("Product not found.")
+
+    #         except mysql.connector.Error as err:
+    #             print(f"Error executing query: {err}")
+    #         finally:
+    #             # Close the cursor (optional, as you will close it when the application exits)
+    #             cursor.close()
 
     mode_of_transportation = ttk.Label(radio_frame, text="Model pracy: ")
     mode_of_transportation.pack()
@@ -366,21 +421,24 @@ def main():
         
     r = IntVar()
     # Modify your radio buttons' commands to call the corresponding mode functions
-    add_product_radio = Radiobutton(radio_frame, text="Add Product",
+    add_product_radio = Radiobutton(radio_frame, text="Dodaj EAN do bazy",
                         variable=r, value=1, highlightthickness=0, command=add_product_mode)
-    actual_radio = Radiobutton(radio_frame, text="Stock",
+    actual_radio = Radiobutton(radio_frame, text="Aktualny stan",
                         variable=r, value=0, highlightthickness=0, command=realtime_stock_mode)
-    find_by_ean_radio = Radiobutton(radio_frame, text="znajdz po EAN",
+    find_by_ean_radio = Radiobutton(radio_frame, text="Znajdz po EAN",
                         variable=r, value=4, highlightthickness=0, command=find_by_ean_mode)
     normal = Radiobutton(radio_frame, text="Wysyłka",
                         variable=r, value=2, highlightthickness=0, command=sent_today_mode)
     overall_radio = Radiobutton(radio_frame, text="Wszystkie wysłane",
                         variable=r, value=3, highlightthickness=0, command=overall_mode)
-    total_stock_radio = Radiobutton(radio_frame, text="wszystkie",
+    total_stock_radio = Radiobutton(radio_frame, text="Wszystko",
                         variable=r, value=5, highlightthickness=0, command=total_stock_mode)
     
-    expiration_stock_radio = Radiobutton(radio_frame, text="krotka data",
+    expiration_stock_radio = Radiobutton(radio_frame, text="Krótka data",
                     variable=r, value=6, highlightthickness=0, command=expiration_mode)
+    
+    everything = Radiobutton(radio_frame, text="Wszystko",
+                    variable=r, value=7, highlightthickness=0, command=show_eveything_mode)
     
     add_product_radio.pack()
     actual_radio.pack()
@@ -389,10 +447,15 @@ def main():
     overall_radio.pack()
     total_stock_radio.pack()
     expiration_stock_radio.pack()
+    everything.pack()
 
     # Create a button for copying EAN
     copy_button = ttk.Button(radio_frame, text="Copy EAN", command=copy_ean)
     copy_button.pack() # Adjust the row and column as needed
+
+    # # Create a button for copying EAN
+    # edit_button = ttk.Button(radio_frame, text="Edit row", command=edit_row)
+    # edit_button.pack() # Adjust the row and column as needed
 
     radio_frame.pack(side=tk.RIGHT)
 
@@ -549,7 +612,7 @@ def main():
         configure_treeview(columns, headings)
         
         query = '''
-                SELECT 
+                SELECT
                     p.EAN, 
                     p.name,
                     COALESCE(i.total_quantity, 0) - COALESCE(SUM(t.qty), 0) AS qty_difference,
@@ -640,8 +703,8 @@ def main():
 
     def base_stock():
         date = waznosc.get()
-        columns = ('EAN', 'Name', 'Location', 'Entry qty', 'Qty Sell', 'Remaining Quantity', 'Entry Date')
-        headings = ('EAN', 'Name', 'Location', 'Entry qty', 'Qty Sell','Remaining Quantity', ' Entry Date')
+        columns = ('EAN', 'Name', 'Location', 'Remaining qty', 'Qty Entry', 'Qty Sell', 'Entry Date')
+        headings = ('EAN', 'Name', 'Location', 'Remaining Qty', 'Qty Entry','Qty Sell', ' Entry Date')
 
         configure_treeview(columns, headings)
         date = waznosc.get()
@@ -698,6 +761,82 @@ def main():
                 with my_conn.cursor() as cursor:
                     cursor.execute("USE wms")
                     cursor.execute(query, (date, ))
+                    data = cursor.fetchall()
+
+            # Clear existing items in the Treeview
+            for item in operations.get_children():
+                operations.delete(item)
+
+            # Insert new data into the Treeview
+            for idx, row in enumerate(data, start=1):
+                if row[2] is not None:
+                    operations.insert(parent='', index='end', iid=str(idx), text='', values=row)
+            operations.update()
+
+        except mysql.connector.Error as err:
+            print(f"Error executing query: {err}")
+        finally:
+            cursor.close()
+
+    def show_eveything():
+        columns = ('ID','EAN', 'Name', 'Location', 'Entry qty', 'Qty Sell', 'Remaining Quantity', 'Entry Date')
+        headings = ('ID','EAN', 'Name', 'Location', 'Entry qty', 'Qty Sell','Remaining Quantity', ' Entry Date')
+
+        configure_treeview(columns, headings)
+
+        query = '''
+                    SELECT
+                        q1.product_id,
+                        q1.EAN,
+                        q1.name,
+                        q1.location,
+                        q2.total_quantity,
+                        q1.qty_difference,
+                        q2.total_quantity - q1.qty_difference AS remaining_quantity,
+                        q2.entry_date
+                    FROM (
+                        SELECT
+                            p.product_id,
+                            p.EAN,
+                            p.name,
+                            MAX(i.quantity) AS quantity,
+                            MAX(i.location) AS location,
+                            MAX(i.expiration_date) AS expiration_date,
+                            SUM(COALESCE(i.quantity, 0) - COALESCE(t.qty, 0)) AS qty_difference,
+                            MAX(i.entry_date) AS entry_date
+                        FROM
+                            products p
+                        LEFT JOIN
+                            inventory i ON p.product_id = i.product_id
+                        LEFT JOIN
+                            transactions t ON p.product_id = t.product_id
+                        GROUP BY
+                            p.product_id, p.EAN, p.name
+                    ) q1
+                    JOIN (
+                        SELECT
+                            p.product_id,
+                            p.EAN,
+                            p.name,
+                            i.entry_date,
+                            SUM(COALESCE(i.quantity, 0)) AS total_quantity
+                        FROM
+                            products p
+                        LEFT JOIN
+                            inventory i ON p.product_id = i.product_id
+                        LEFT JOIN
+                            transactions t ON p.product_id = t.product_id
+                        GROUP BY
+                            p.product_id, p.EAN, p.name, i.entry_date
+                        ORDER BY
+                            p.EAN, i.entry_date
+                    ) q2 ON q1.product_id = q2.product_id AND q1.EAN = q2.EAN AND q1.name = q2.name;
+        '''
+        try:
+            with get_conn() as my_conn:
+                with my_conn.cursor() as cursor:
+                    cursor.execute("USE wms")
+                    cursor.execute(query)
                     data = cursor.fetchall()
 
             # Clear existing items in the Treeview
