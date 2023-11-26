@@ -1,52 +1,34 @@
-import mysql.connector
-import tkinter as tk
-from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, messagebox,Text, Checkbutton
-from tkcalendar import DateEntry
 from datetime import datetime
+from tkinter import ttk, messagebox, Checkbutton
+from tkinter import Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL
+from tkcalendar import DateEntry
+import tkinter as tk
 import babel.numbers
+import mysql.connector
 
+# def get_conn():
+#     return mysql.connector.connect(
+#         host="192.168.8.116",
+#         user="psmajkos",
+#         passwd="Pcf85830"
+#     )
+
+# Get connection to mysql
 def get_conn():
     return mysql.connector.connect(
         host="localhost",
         user="root",
         passwd="Pcf85830"
     )
-
-my_conn = get_conn()
-cursor = my_conn.cursor()
-
-cursor.execute("CREATE DATABASE IF NOT EXISTS wms")
-
-cursor.execute("USE wms")
-
-cursor.execute('''CREATE TABLE IF NOT EXISTS products
-                (product_id INT AUTO_INCREMENT PRIMARY KEY,
-                EAN BIGINT NOT NULL,
-                name VARCHAR(45))''')
-
-cursor.execute('''CREATE TABLE IF NOT EXISTS inventory
-                (inventory_id INT AUTO_INCREMENT PRIMARY KEY,
-                product_id INT,
-                quantity INT,
-                location VARCHAR(255),
-                expiration_date DATE,
-                entry_date DATE,
-                FOREIGN KEY (product_id) REFERENCES products(product_id))''')
-
-cursor.execute('''CREATE TABLE IF NOT EXISTS transactions
-                (id INT AUTO_INCREMENT PRIMARY KEY,
-                product_id INT,
-                qty INT,
-                transaction_date DATE,
-                FOREIGN KEY (product_id) REFERENCES products(product_id))''')
-
+# Main function of application
 def main():
     # Get the current date
     current_date = datetime.now()
 
-    # Format the date as 'YYYY-MM-DD'
+    # Format the date as 'YYYY-MM-DD' for MySQL
     formatted_date = current_date.strftime('%Y-%m-%d')
 
+    # Configure the TreeView
     def configure_treeview(columns, headings):
         # Remove existing columns
         for col in operations['columns']:
@@ -66,18 +48,18 @@ def main():
     # Allow the window to be resizable
     root.resizable(True, True)
 
-
+    # Initialization 
     EAN = tk.IntVar()
+    EAN.set("")
     qty = tk.IntVar()
+    qty.set(1)
     name = tk.StringVar()
     waznosc = tk.StringVar()
     location_var = tk.StringVar()
     include_expiration_var = IntVar()
     include_expiration_var.set(1)  # Set default to include expiration
 
-    EAN.set("")
-    qty.set(1)
-
+    # Add the product(EANs, Names) to database
     def add_product():
         get_ean = EAN.get()
         name_get = name.get()
@@ -130,9 +112,8 @@ def main():
         qty.set(1)
         name_entry.delete(0, tk.END)
         ref()
-        # realtime_stock()
-        # actual_stock()
 
+    # Add batch of product with dates and quantity
     def put_product_to_inventory(include_expiration=True):
         get_ean = EAN.get()
         get_qty = qty.get()
@@ -185,7 +166,8 @@ def main():
         ref()
         actual_stock()
 
-
+    # This function is responsible for being called when packing for shipment
+    # Add the row of packed items with actual date 
     def packing():
         get_ean = EAN.get()
         get_qty = qty.get()
@@ -875,3 +857,31 @@ def main():
     realtime_stock_mode()
     root.mainloop()
 main()
+
+my_conn = get_conn()
+cursor = my_conn.cursor()
+
+cursor.execute("CREATE DATABASE IF NOT EXISTS wms")
+
+cursor.execute("USE wms")
+
+cursor.execute('''CREATE TABLE IF NOT EXISTS products
+                (product_id INT AUTO_INCREMENT PRIMARY KEY,
+                EAN BIGINT NOT NULL,
+                name VARCHAR(45))''')
+
+cursor.execute('''CREATE TABLE IF NOT EXISTS inventory
+                (inventory_id INT AUTO_INCREMENT PRIMARY KEY,
+                product_id INT,
+                quantity INT,
+                location VARCHAR(255),
+                expiration_date DATE,
+                entry_date DATE,
+                FOREIGN KEY (product_id) REFERENCES products(product_id))''')
+
+cursor.execute('''CREATE TABLE IF NOT EXISTS transactions
+                (id INT AUTO_INCREMENT PRIMARY KEY,
+                product_id INT,
+                qty INT,
+                transaction_date DATE,
+                FOREIGN KEY (product_id) REFERENCES products(product_id))''')
