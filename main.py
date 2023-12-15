@@ -7,9 +7,9 @@ import babel.numbers
 
 def get_conn():
     return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        passwd="Pcf85830"
+        host="192.168.8.116",
+        user="user",
+        passwd=""
     )
 
 my_conn = get_conn()
@@ -88,7 +88,7 @@ def main():
             return
         
         # Check if the EAN already exists
-        ean_exists_query = "SELECT COUNT(product_id,EAN, name) FROM products WHERE EAN = %s"
+        ean_exists_query = "SELECT COUNT(*) FROM products WHERE EAN = %s"
         ean_exists_values = (get_ean, )
 
         try:
@@ -355,6 +355,10 @@ def main():
     def expiration_mode():
         display_expirations()
 
+    # def add_existing_batch():
+    #     add_existing_widgets()
+
+
     radio_frame = tk.Frame(root, bd=2, relief=SUNKEN)
 
     def copy_ean():
@@ -429,6 +433,8 @@ def main():
     # Modify your radio buttons' commands to call the corresponding mode functions
     add_product_radio = Radiobutton(radio_frame, text="Dodaj EAN do bazy",
                         variable=r, value=1, highlightthickness=0, command=add_product_mode)
+    # add_existing = Radiobutton(radio_frame, text="Dodaj do istniejącej partii",
+    #                            variable=r, value=4, highlightthickness=0, command=add_existing_batch)
     actual_radio = Radiobutton(radio_frame, text="Aktualny stan",
                         variable=r, value=0, highlightthickness=0, command=realtime_stock_mode)
     find_by_ean_radio = Radiobutton(radio_frame, text="Znajdz po EAN",
@@ -448,6 +454,7 @@ def main():
     
     add_product_radio.pack()
     actual_radio.pack()
+    # add_existing.pack()
     find_by_ean_radio.pack()
     normal.pack()
     overall_radio.pack()
@@ -622,6 +629,7 @@ def main():
                     p.EAN, 
                     p.name,
                     COALESCE(i.total_quantity, 0) - COALESCE(SUM(t.qty), 0) AS qty_difference,
+                    i.expiration_date,
                     CASE
                         WHEN COALESCE(i.total_quantity, 0) = COALESCE(SUM(t.qty), 0) THEN 'Match'
                         WHEN COALESCE(i.total_quantity, 0) > COALESCE(SUM(t.qty), 0) THEN 'Inventory Excess'
@@ -632,14 +640,14 @@ def main():
                     products p
                 LEFT JOIN 
                     (
-                        SELECT product_id, SUM(quantity) AS total_quantity
+                        SELECT product_id, SUM(quantity) AS total_quantity, MIN(expiration_date) AS expiration_date
                         FROM inventory
                         GROUP BY product_id
                     ) i ON p.product_id = i.product_id
                 LEFT JOIN 
                     transactions t ON p.product_id = t.product_id
                 GROUP BY 
-                    p.EAN, p.name, i.total_quantity;
+                    p.EAN, p.name, i.total_quantity, i.expiration_date;
                 '''
 
         try:
@@ -684,6 +692,7 @@ def main():
                     GROUP BY p.EAN, p.name
                 ) AS subquery;
              '''
+
 
         try:
             with get_conn() as my_conn:
