@@ -1,14 +1,14 @@
 import mysql.connector
 import tkinter as tk
-from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, messagebox,Text, Checkbutton
+from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, messagebox,Text, Checkbutton, font
 from tkcalendar import DateEntry
 from datetime import datetime
 import babel.numbers
 
 def get_conn():
     return mysql.connector.connect(
-        host="192.168.8.116",
-        user="user",
+        host="localhost",
+        user="root",
         passwd=""
     )
 
@@ -22,7 +22,8 @@ cursor.execute("USE wms")
 cursor.execute('''CREATE TABLE IF NOT EXISTS products
                 (product_id INT AUTO_INCREMENT PRIMARY KEY,
                 EAN BIGINT NOT NULL,
-                name VARCHAR(45))''')
+                name VARCHAR(80),
+                category VARCHAR(80))''')
 
 cursor.execute('''CREATE TABLE IF NOT EXISTS inventory
                 (inventory_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -88,7 +89,7 @@ def main():
             return
         
         # Check if the EAN already exists
-        ean_exists_query = "SELECT COUNT(*) FROM products WHERE EAN = %s"
+        ean_exists_query = "SELECT COUNT(EAN) FROM products WHERE EAN = %s"
         ean_exists_values = (get_ean, )
 
         try:
@@ -413,9 +414,6 @@ def main():
         else:
             print("Not enough values in the tuple.")
 
-
-
-
     mode_of_transportation = ttk.Label(radio_frame, text="Model pracy: ")
     mode_of_transportation.pack()
 
@@ -454,11 +452,9 @@ def main():
     
     add_product_radio.pack()
     actual_radio.pack()
-    # add_existing.pack()
     find_by_ean_radio.pack()
     normal.pack()
     overall_radio.pack()
-    # total_stock_radio.pack()
     expiration_stock_radio.pack()
     everything.pack()
 
@@ -880,7 +876,6 @@ def main():
 
         operations.update()
         operations.pack() 
-    # actual_stock()
     realtime_stock_mode()
     root.mainloop()
 main()
