@@ -51,6 +51,7 @@ def main():
         operations['columns'] = columns
         for col, heading in zip(columns, headings):
             operations.heading(col, text=heading)
+            operations.column(col, stretch=tk.YES)
 
     root = tk.Tk()
     root.title("Product Inventory")
@@ -128,7 +129,7 @@ def main():
         root.bind('<Return>',lambda event:add_product())
 
         # Clear the entry field after inserting the value
-        EAN_entry.delete(0, tk.END)
+        ean_entry.delete(0, tk.END)
         name_entry.delete(0, tk.END)
         qty.set(1)
         ref()
@@ -184,7 +185,7 @@ def main():
             cursor.close()
 
         # Clear the entry field after inserting the value
-        EAN_entry.delete(0, tk.END)
+        ean_entry.delete(0, tk.END)
         qty_entry.delete(0, tk.END)
         name_entry.delete(0, tk.END)
         qty.set(1)
@@ -235,7 +236,7 @@ def main():
             cursor.close()
 
         # Clear the entry field after inserting the value
-        EAN_entry.delete(0, tk.END)
+        ean_entry.delete(0, tk.END)
         qty_entry.delete(0, tk.END)
         qty.set(1)
         name_entry.delete(0, tk.END)
@@ -250,20 +251,22 @@ def main():
         else:
             put_into_inventory_button.config(command=lambda: put_product_to_inventory(include_expiration=False))
 
+    # Create a frame for the upper part of the GUI
     upper_gui = tk.Frame(root, width=1920, height=500, bd=2, relief=SUNKEN)
 
-    # Create the Checkbutton
+    # Create the Checkbutton for expiration date 
     expiration_checkbutton = Checkbutton(upper_gui, text="Z datą ważności", variable=include_expiration_var)
 
     # Attach the function to the checkbutton state change
     expiration_checkbutton.config(command=handle_expiration_check)
 
-    EAN_label = tk.Label(upper_gui, text="EAN: ")
-    EAN_entry = ttk.Entry(upper_gui, textvariable=ean)
+    # Labels and Entry widgets for EAN, Quantity, Name, Expiration Date, Category, and Location
+    ean_label = tk.Label(upper_gui, text="EAN: ")
+    ean_entry = ttk.Entry(upper_gui, textvariable=ean)
     qty_entry = ttk.Entry(upper_gui, textvariable=qty, width=3)
     qty_label = tk.Label(upper_gui, text="Ilość: ", width=7)
     name_label = tk.Label(upper_gui, text="Nazwa: ", width=10)
-    name_entry = ttk.Entry(upper_gui, textvariable=name)
+    name_entry = ttk.Entry(upper_gui, textvariable=name, width=40)
     waznosc_label = tk.Label(upper_gui, text="Ważność", width=10)
     waznosc_entry = DateEntry(upper_gui, textvariable=waznosc, date_pattern='y/m/d')
     category_combo = ttk.Combobox(upper_gui, text="Kategoria", textvariable=category_var)
@@ -284,11 +287,11 @@ def main():
 
     # root.bind('<Return>',lambda event:add_product())
 
-    EAN_label.pack()
-    EAN_entry.pack()
+    ean_label.pack()
+    ean_entry.pack()
+    ean_entry.focus_set()
     name_label.pack()
     name_entry.pack()
-    EAN_entry.focus_set()
     qty_label.pack()
     qty_entry.pack()
 
@@ -302,6 +305,7 @@ def main():
     add_button.pack()
     expiration_checkbutton.pack()
 
+    # Functions for showing and hiding widgets based on different modes
     def show_widgets(widgets):
         for widget in widgets:
             widget.pack()
@@ -310,38 +314,39 @@ def main():
         for widget in widgets:
             widget.pack_forget()
     
+    # Mode-specific functions and their associated widgets
+            
+    def add_product_mode_widgets():
+        show_widgets([name_label, name_entry, ean_label, ean_entry, category_combo, add_button])
+        hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button, expiration_checkbutton])
 
     def sent_today_widgets():
-        show_widgets([send_button, copy_button, EAN_label, EAN_entry])
+        show_widgets([send_button, copy_button, ean_label, ean_entry])
         hide_widgets([add_button, waznosc_label, waznosc_entry, qty_label, qty_entry, location_label, location_combo, put_into_inventory_button, name_entry, name_label, expiration_checkbutton, category_combo])
 
     def actual_mode_widgets():
         show_widgets([qty_label, qty_entry, waznosc_label, waznosc_entry, location_label, location_combo, copy_button, expiration_checkbutton, put_into_inventory_button])
         hide_widgets([send_button, name_entry, name_label, add_button, category_combo])
 
-    def add_product_mode_widgets():
-        show_widgets([EAN_label, EAN_entry, name_label, name_entry, category_combo, add_button])
-        hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button, expiration_checkbutton])
-
     def overall_mode_widgets():
         show_widgets([send_button, waznosc_label, waznosc_entry])
         hide_widgets([add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button, expiration_checkbutton])
 
     def find_by_ean_mode_widgets():
-        show_widgets([copy_button, EAN_label, EAN_entry])
+        show_widgets([copy_button, ean_label, ean_entry])
         hide_widgets([name_entry, name_label, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button, add_button, expiration_checkbutton])
 
     def total_stock_mode_widgets():
         show_widgets([copy_button, waznosc_label,waznosc_entry])
-        hide_widgets([EAN_entry, EAN_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
+        hide_widgets([ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
 
     def show_eveything_widgets():
         hide_widgets([copy_button, waznosc_label,waznosc_entry])
-        show_widgets([copy_button, waznosc_label, waznosc_entry, EAN_entry, EAN_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
+        show_widgets([copy_button, waznosc_label, waznosc_entry, ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
     
     def sent_today_mode():
         sent_today_widgets()
-        today_table()
+        sent_today_table()
 
     def realtime_stock_mode():
         actual_mode_widgets()
@@ -371,7 +376,7 @@ def main():
 
     radio_frame = tk.Frame(root, bd=2, relief=SUNKEN)
 
-    def copy_ean():
+    def copy_ean_from_list():
         selected_item = operations.selection()
         if selected_item:
             ean_index = 0  # Assuming EAN is the first column in your Treeview
@@ -423,9 +428,6 @@ def main():
         else:
             print("Not enough values in the tuple.")
 
-
-
-
     mode_of_transportation = ttk.Label(radio_frame, text="Model pracy: ")
     mode_of_transportation.pack()
 
@@ -447,9 +449,9 @@ def main():
                         variable=r, value=0, highlightthickness=0, command=realtime_stock_mode)
     find_by_ean_radio = Radiobutton(radio_frame, text="Znajdz po EAN",
                         variable=r, value=4, highlightthickness=0, command=find_by_ean_mode)
-    normal = Radiobutton(radio_frame, text="Wysyłka",
+    send_radio = Radiobutton(radio_frame, text="Wysyłka",
                         variable=r, value=2, highlightthickness=0, command=sent_today_mode)
-    overall_radio = Radiobutton(radio_frame, text="Wszystkie wysłane",
+    overall_sent_radio = Radiobutton(radio_frame, text="Wszystkie wysłane",
                         variable=r, value=3, highlightthickness=0, command=overall_mode)
     # total_stock_radio = Radiobutton(radio_frame, text="Wszystko",
     #                     variable=r, value=5, highlightthickness=0, command=total_stock_mode)
@@ -463,14 +465,14 @@ def main():
     add_product_radio.pack()
     actual_radio.pack()
     find_by_ean_radio.pack()
-    normal.pack()
-    overall_radio.pack()
+    send_radio.pack()
+    overall_sent_radio.pack()
     # total_stock_radio.pack()
     expiration_stock_radio.pack()
     everything.pack()
 
     # Create a button for copying EAN
-    copy_button = ttk.Button(radio_frame, text="Kopiuj EAN", command=copy_ean)
+    copy_button = ttk.Button(radio_frame, text="Kopiuj EAN", command=copy_ean_from_list)
     copy_button.pack() # Adjust the row and column as needed
 
     # # Create a button for copying EAN
@@ -487,7 +489,7 @@ def main():
 
     operations.column("#0", width=0,  stretch=NO)
 
-    def today_table():
+    def sent_today_table():
         columns = ('EAN', 'Name', 'Qty Sell', 'Date')
         headings = ('EAN', 'Nazwa', 'Wysłane', 'Data')
 
@@ -626,35 +628,61 @@ def main():
                 cursor.close()
                 
     def actual_stock():
-        columns = ('EAN', "name", 'qty_difference', 'quantity_comparison')
-        headings = ('EAN', "Nazwa", 'Stan','quantity_comparison')
+        columns = ('EAN', "name", 'qty_difference', 'expiration_date')
+        headings = ('EAN', "Nazwa", 'Stan', 'Data waznosci')
 
         configure_treeview(columns, headings)
         
+        # query = '''
+        #         SELECT
+        #             p.EAN, 
+        #             p.name,
+        #             COALESCE(i.total_quantity, 0) - COALESCE(SUM(t.qty), 0) AS qty_difference,
+        #             CASE
+        #                 WHEN COALESCE(i.total_quantity, 0) = COALESCE(SUM(t.qty), 0) THEN 'Match'
+        #                 WHEN COALESCE(i.total_quantity, 0) > COALESCE(SUM(t.qty), 0) THEN 'Inventory Excess'
+        #                 WHEN COALESCE(i.total_quantity, 0) < COALESCE(SUM(t.qty), 0) THEN 'Transaction Excess'
+        #                 ELSE 'Unknown'
+        #             END AS quantity_comparison
+        #         FROM 
+        #             products p
+        #         LEFT JOIN 
+        #             (
+        #                 SELECT product_id, SUM(quantity) AS total_quantity
+        #                 FROM inventory
+        #                 GROUP BY product_id
+        #             ) i ON p.product_id = i.product_id
+        #         LEFT JOIN 
+        #             transactions t ON p.product_id = t.product_id
+        #         GROUP BY 
+        #             p.EAN, p.name, i.total_quantity;
+        #         '''
+        
         query = '''
-                SELECT
-                    p.EAN, 
-                    p.name,
-                    COALESCE(i.total_quantity, 0) - COALESCE(SUM(t.qty), 0) AS qty_difference,
-                    CASE
-                        WHEN COALESCE(i.total_quantity, 0) = COALESCE(SUM(t.qty), 0) THEN 'Match'
-                        WHEN COALESCE(i.total_quantity, 0) > COALESCE(SUM(t.qty), 0) THEN 'Inventory Excess'
-                        WHEN COALESCE(i.total_quantity, 0) < COALESCE(SUM(t.qty), 0) THEN 'Transaction Excess'
-                        ELSE 'Unknown'
-                    END AS quantity_comparison
-                FROM 
-                    products p
-                LEFT JOIN 
-                    (
-                        SELECT product_id, SUM(quantity) AS total_quantity
-                        FROM inventory
-                        GROUP BY product_id
-                    ) i ON p.product_id = i.product_id
-                LEFT JOIN 
-                    transactions t ON p.product_id = t.product_id
-                GROUP BY 
-                    p.EAN, p.name, i.total_quantity;
-                '''
+        SELECT
+            p.EAN, 
+            p.name,
+            COALESCE(i.total_quantity, 0) - COALESCE(SUM(t.qty), 0) AS qty_difference,
+            MAX(COALESCE(i.expiration_date, 'No expiration date')) AS expiration_date,
+            CASE
+                WHEN COALESCE(i.total_quantity, 0) = COALESCE(SUM(t.qty), 0) THEN 'Match'
+                WHEN COALESCE(i.total_quantity, 0) > COALESCE(SUM(t.qty), 0) THEN 'Inventory Excess'
+                WHEN COALESCE(i.total_quantity, 0) < COALESCE(SUM(t.qty), 0) THEN 'Transaction Excess'
+                ELSE 'Unknown'
+            END AS quantity_comparison
+        FROM 
+            products p
+        LEFT JOIN 
+            (
+                SELECT product_id, SUM(quantity) AS total_quantity, MAX(expiration_date) AS expiration_date
+                FROM inventory
+                GROUP BY product_id
+            ) i ON p.product_id = i.product_id
+        LEFT JOIN 
+            transactions t ON p.product_id = t.product_id
+        GROUP BY 
+            p.EAN, p.name, i.total_quantity;
+        '''
 
         try:
             with get_conn() as my_conn:
