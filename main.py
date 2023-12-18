@@ -4,13 +4,7 @@ from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, mes
 from tkcalendar import DateEntry
 from datetime import datetime
 import babel.numbers
-
-def get_conn():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        passwd="Pcf85830"
-    )
+from db_connector import get_conn
 
 my_conn = get_conn()
 cursor = my_conn.cursor()
@@ -22,7 +16,8 @@ cursor.execute("USE wms")
 cursor.execute('''CREATE TABLE IF NOT EXISTS products
                 (product_id INT AUTO_INCREMENT PRIMARY KEY,
                 EAN BIGINT NOT NULL,
-                name VARCHAR(45))''')
+                name VARCHAR(80),
+                category VARCHAR(80))''')
 
 cursor.execute('''CREATE TABLE IF NOT EXISTS inventory
                 (inventory_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -66,20 +61,25 @@ def main():
     # Allow the window to be resizable
     root.resizable(True, True)
 
-
-    EAN = tk.IntVar()
+    ean = tk.IntVar()
     qty = tk.IntVar()
     name = tk.StringVar()
     waznosc = tk.StringVar()
     location_var = tk.StringVar()
+    category_var = tk.StringVar()
     include_expiration_var = IntVar()
     include_expiration_var.set(1)  # Set default to include expiration
 
-    EAN.set("")
+    ean.set("")
     qty.set(1)
 
     def add_product():
-        get_ean = EAN.get()
+        """
+        Adds a new product to the 'products' table in the database.
+        Checks for existing EAN and prompts an error if the EAN already exists.
+        """
+
+        get_ean = ean.get()
         name_get = name.get()
 
         # Check if the EAN and name are not empty
@@ -88,7 +88,7 @@ def main():
             return
         
         # Check if the EAN already exists
-        ean_exists_query = "SELECT COUNT(*) FROM products WHERE EAN = %s"
+        ean_exists_query = "SELECT COUNT(EAN) FROM products WHERE EAN = %s"
         ean_exists_values = (get_ean, )
 
         try:
@@ -125,16 +125,21 @@ def main():
         finally:
             cursor.close()
 
+        root.bind('<Return>',lambda event:add_product())
+
         # Clear the entry field after inserting the value
         EAN_entry.delete(0, tk.END)
-        qty.set(1)
         name_entry.delete(0, tk.END)
+        qty.set(1)
         ref()
-        # realtime_stock()
-        # actual_stock()
 
     def put_product_to_inventory(include_expiration=True):
-        get_ean = EAN.get()
+        """
+        Adds a product batch to the 'inventory' table in the database.
+        Checks for existing product, retrieves its product_id, and inserts the batch.
+        """
+
+        get_ean = ean.get()
         get_qty = qty.get()
         location = location_var.get()
 
@@ -146,7 +151,6 @@ def main():
             messagebox.showerror("Błąd!", "EAN i Ilość są wymagane!")
             return
 
-        # Assuming 'EAN' corresponds to 'product_id' in the 'products' table
         product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
         product_id_values = (get_ean, )
 
@@ -159,9 +163,11 @@ def main():
 
                     if product_id:
                         # 'product_id' retrieved from 'products' table
+                        # Insert product batch with expiration date
                         if include_expiration:
                             query = "INSERT INTO inventory(product_id, quantity, location, expiration_date, entry_date) VALUES (%s, %s, %s, %s, %s)"
                             values = (product_id[0], get_qty, location, waznosc.get(), formatted_date)
+                        # Insert product batch without expiration date
                         else:
                             query = "INSERT INTO inventory(product_id, quantity, location, entry_date) VALUES (%s, %s, %s, %s)"
                             values = (product_id[0], get_qty, location, formatted_date)
@@ -180,14 +186,17 @@ def main():
         # Clear the entry field after inserting the value
         EAN_entry.delete(0, tk.END)
         qty_entry.delete(0, tk.END)
-        qty.set(1)
         name_entry.delete(0, tk.END)
+        qty.set(1)
         ref()
         actual_stock()
 
-
     def packing():
-        get_ean = EAN.get()
+        """
+        Records a transaction for packing a product.
+        Checks for an existing product, retrieves its product_id, and records the transaction.
+        """
+        get_ean = ean.get()
         get_qty = qty.get()
 
         if get_qty is None:
@@ -250,13 +259,16 @@ def main():
     expiration_checkbutton.config(command=handle_expiration_check)
 
     EAN_label = tk.Label(upper_gui, text="EAN: ")
-    EAN_entry = ttk.Entry(upper_gui, textvariable=EAN)
+    EAN_entry = ttk.Entry(upper_gui, textvariable=ean)
     qty_entry = ttk.Entry(upper_gui, textvariable=qty, width=3)
     qty_label = tk.Label(upper_gui, text="Ilość: ", width=7)
     name_label = tk.Label(upper_gui, text="Nazwa: ", width=10)
     name_entry = ttk.Entry(upper_gui, textvariable=name)
     waznosc_label = tk.Label(upper_gui, text="Ważność", width=10)
     waznosc_entry = DateEntry(upper_gui, textvariable=waznosc, date_pattern='y/m/d')
+    category_combo = ttk.Combobox(upper_gui, text="Kategoria", textvariable=category_var)
+    category_combo.set('Suplementy')
+    category_combo['values'] = ['Suplementy', 'Nabiał', 'Mięso', 'Ryby i owoce morza', 'Owoce', 'Produkty zbożowe', 'Przetwory spożywcze', 'Napoje', 'Słodycze','Przekąski','Produkty organiczne']
     
     send_button = ttk.Button(upper_gui, text="Nadaj", command=packing)
     location_label = ttk.Label(upper_gui, text="Lokalizacja")
@@ -268,9 +280,9 @@ def main():
     put_into_inventory_button = ttk.Button(upper_gui, text="Dodaj partie", command=put_product_to_inventory)
     put_into_inventory_button.pack()
 
-    root.bind('<Return>',lambda event:put_product_to_inventory())
+    # root.bind('<Return>',lambda event:put_product_to_inventory())
 
-    root.bind('<Return>',lambda event:add_product())
+    # root.bind('<Return>',lambda event:add_product())
 
     EAN_label.pack()
     EAN_entry.pack()
@@ -286,6 +298,7 @@ def main():
     send_button.pack()
     location_label.pack()
     location_combo.pack()
+    category_combo.pack()
     add_button.pack()
     expiration_checkbutton.pack()
 
@@ -296,17 +309,18 @@ def main():
     def hide_widgets(widgets):
         for widget in widgets:
             widget.pack_forget()
+    
 
     def sent_today_widgets():
         show_widgets([send_button, copy_button, EAN_label, EAN_entry])
-        hide_widgets([add_button, waznosc_label, waznosc_entry, qty_label, qty_entry, location_label, location_combo, put_into_inventory_button, name_entry, name_label, expiration_checkbutton])
+        hide_widgets([add_button, waznosc_label, waznosc_entry, qty_label, qty_entry, location_label, location_combo, put_into_inventory_button, name_entry, name_label, expiration_checkbutton, category_combo])
 
     def actual_mode_widgets():
-        show_widgets([qty_label, qty_entry, waznosc_label, waznosc_entry, location_label, location_combo, copy_button, put_into_inventory_button, expiration_checkbutton])
-        hide_widgets([send_button, name_entry, name_label, add_button])
+        show_widgets([qty_label, qty_entry, waznosc_label, waznosc_entry, location_label, location_combo, copy_button, expiration_checkbutton, put_into_inventory_button])
+        hide_widgets([send_button, name_entry, name_label, add_button, category_combo])
 
     def add_product_mode_widgets():
-        show_widgets([EAN_label, EAN_entry, name_label, name_entry, add_button])
+        show_widgets([EAN_label, EAN_entry, name_label, name_entry, category_combo, add_button])
         hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button, expiration_checkbutton])
 
     def overall_mode_widgets():
@@ -460,7 +474,7 @@ def main():
     copy_button.pack() # Adjust the row and column as needed
 
     # # Create a button for copying EAN
-    edit_button = ttk.Button(radio_frame, text="Edit row", command=edit_row)
+    edit_button = ttk.Button(radio_frame, text="Edytuj", command=edit_row)
     edit_button.pack() # Adjust the row and column as needed
 
     radio_frame.pack(side=tk.RIGHT)
@@ -527,7 +541,7 @@ def main():
                 with get_conn() as my_conn:
                     with my_conn.cursor() as cursor:
                         cursor.execute("USE wms")
-                        ean_to_compare = EAN.get()
+                        ean_to_compare = ean.get()
                         cursor.execute(query, (ean_to_compare, ))
                         data = cursor.fetchall()
 
