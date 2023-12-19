@@ -136,11 +136,12 @@ def main():
 
     def put_product_to_inventory(include_expiration=True):
         """
-        Adds a product batch to the 'inventory' table in the database.
-        Checks for existing product, retrieves its product_id, and inserts the batch.
+        Adds a new product to the 'products' table and puts a product batch in the 'inventory' table in the database.
+        Checks for existing EAN, increments quantity if EAN already exists, and inserts the product batch.
         """
 
         get_ean = ean.get()
+        name_get = name.get()
         get_qty = qty.get()
         location = location_var.get()
 
@@ -159,24 +160,43 @@ def main():
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
                     cursor.execute("USE wms")
-                    cursor.execute(product_id_query, product_id_values)
-                    product_id = cursor.fetchone()
+                    
+                    # Check if the EAN already exists
+                    ean_exists_query = "SELECT COUNT(EAN) FROM products WHERE EAN = %s"
+                    ean_exists_values = (get_ean, )
+                    cursor.execute(ean_exists_query, ean_exists_values)
+                    ean_count = cursor.fetchone()[0]
 
-                    if product_id:
-                        # 'product_id' retrieved from 'products' table
-                        # Insert product batch with expiration date
-                        if include_expiration:
-                            query = "INSERT INTO inventory(product_id, quantity, location, expiration_date, entry_date) VALUES (%s, %s, %s, %s, %s)"
-                            values = (product_id[0], get_qty, location, waznosc.get(), formatted_date)
-                        # Insert product batch without expiration date
-                        else:
-                            query = "INSERT INTO inventory(product_id, quantity, location, entry_date) VALUES (%s, %s, %s, %s)"
-                            values = (product_id[0], get_qty, location, formatted_date)
-
-                        cursor.execute(query, values)
-                        my_conn.commit()
+                    if ean_count > 0:
+                        # If EAN exists, increment quantity
+                        update_qty_query = "UPDATE inventory SET quantity = quantity + %s WHERE product_id = (SELECT product_id FROM products WHERE EAN = %s)"
+                        update_qty_values = (get_qty, get_ean)
+                        cursor.execute(update_qty_query, update_qty_values)
                     else:
-                        print("Produktu nie znaleziono.")
+                        # If EAN doesn't exist, proceed with the insertion
+                        insert_product_query = "INSERT INTO products(EAN, name) VALUES (%s, %s)"
+                        insert_product_values = (get_ean, name_get)
+                        cursor.execute(insert_product_query, insert_product_values)
+
+                        # Retrieve product_id
+                        cursor.execute(product_id_query, product_id_values)
+                        product_id = cursor.fetchone()
+
+                        if product_id:
+                            # Insert product batch with expiration date
+                            if include_expiration:
+                                query = "INSERT INTO inventory(product_id, quantity, location, expiration_date, entry_date) VALUES (%s, %s, %s, %s, %s)"
+                                values = (product_id[0], get_qty, location, waznosc.get(), formatted_date)
+                            # Insert product batch without expiration date
+                            else:
+                                query = "INSERT INTO inventory(product_id, quantity, location, entry_date) VALUES (%s, %s, %s, %s)"
+                                values = (product_id[0], get_qty, location, formatted_date)
+
+                            cursor.execute(query, values)
+                        else:
+                            print("Produktu nie znaleziono.")
+
+                    my_conn.commit()
 
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
@@ -184,13 +204,78 @@ def main():
             # Close the cursor (optional, as you will close it when the application exits)
             cursor.close()
 
-        # Clear the entry field after inserting the value
+        # Clear the entry fields after inserting the values
         ean_entry.delete(0, tk.END)
         qty_entry.delete(0, tk.END)
         name_entry.delete(0, tk.END)
         qty.set(1)
         ref()
         actual_stock()
+
+
+
+    # def put_product_to_inventory(include_expiration=True):
+    #     """
+    #     Adds a product batch to the 'inventory' table in the database.
+    #     Checks for existing product, retrieves its product_id, and inserts the batch.
+    #     """
+
+    #     get_ean = ean.get()
+    #     get_qty = qty.get()
+    #     location = location_var.get()
+
+    #     if get_qty is None:
+    #         get_qty = 1
+
+    #     # Check if the EAN and name are not empty
+    #     if not get_ean or not get_qty:
+    #         messagebox.showerror("Błąd!", "EAN i Ilość są wymagane!")
+    #         return
+
+    #     product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
+    #     product_id_values = (get_ean, )
+
+    #     try:
+    #         with get_conn() as my_conn:
+    #             with my_conn.cursor() as cursor:
+    #                 cursor.execute("USE wms")
+    #                 cursor.execute(product_id_query, product_id_values)
+    #                 product_id = cursor.fetchone()
+
+    #                 if product_id:
+    #                     name_get = name.get()
+    #                             # If EAN doesn't exist, proceed with the insertion
+    #                     insert_query = "INSERT INTO products(EAN, name) VALUES (%s, %s)"
+    #                     insert_values = (get_ean, name_get)
+    #                     # 'product_id' retrieved from 'products' table
+    #                     # Insert product batch with expiration date
+    #                     if include_expiration:
+    #                         query = "INSERT INTO inventory(product_id, quantity, location, expiration_date, entry_date) VALUES (%s, %s, %s, %s, %s)"
+    #                         values = (product_id[0], get_qty, location, waznosc.get(), formatted_date)
+    #                     # Insert product batch without expiration date
+    #                     else:
+    #                         query = "INSERT INTO inventory(product_id, quantity, location, entry_date) VALUES (%s, %s, %s, %s)"
+    #                         values = (product_id[0], get_qty, location, formatted_date)
+
+    #                     cursor.execute(query, values)
+    #                     cursor.execute(insert_query, insert_values)
+    #                     my_conn.commit()
+    #                 else:
+    #                     print("Produktu nie znaleziono.")
+
+    #     except mysql.connector.Error as err:
+    #         print(f"Error executing query: {err}")
+    #     finally:
+    #         # Close the cursor (optional, as you will close it when the application exits)
+    #         cursor.close()
+
+    #     # Clear the entry field after inserting the value
+    #     ean_entry.delete(0, tk.END)
+    #     qty_entry.delete(0, tk.END)
+    #     name_entry.delete(0, tk.END)
+    #     qty.set(1)
+    #     ref()
+    #     actual_stock()
 
     def packing():
         """
@@ -325,8 +410,8 @@ def main():
         hide_widgets([add_button, waznosc_label, waznosc_entry, qty_label, qty_entry, location_label, location_combo, put_into_inventory_button, name_entry, name_label, expiration_checkbutton, category_combo])
 
     def actual_mode_widgets():
-        show_widgets([qty_label, qty_entry, waznosc_label, waznosc_entry, location_label, location_combo, copy_button, expiration_checkbutton, put_into_inventory_button])
-        hide_widgets([send_button, name_entry, name_label, add_button, category_combo])
+        show_widgets([name_label, name_entry, qty_label, qty_entry, waznosc_label, waznosc_entry, location_label, location_combo, copy_button, expiration_checkbutton, put_into_inventory_button])
+        hide_widgets([send_button, add_button, category_combo])
 
     def overall_mode_widgets():
         show_widgets([send_button, waznosc_label, waznosc_entry])
@@ -633,31 +718,6 @@ def main():
 
         configure_treeview(columns, headings)
         
-        # query = '''
-        #         SELECT
-        #             p.EAN, 
-        #             p.name,
-        #             COALESCE(i.total_quantity, 0) - COALESCE(SUM(t.qty), 0) AS qty_difference,
-        #             CASE
-        #                 WHEN COALESCE(i.total_quantity, 0) = COALESCE(SUM(t.qty), 0) THEN 'Match'
-        #                 WHEN COALESCE(i.total_quantity, 0) > COALESCE(SUM(t.qty), 0) THEN 'Inventory Excess'
-        #                 WHEN COALESCE(i.total_quantity, 0) < COALESCE(SUM(t.qty), 0) THEN 'Transaction Excess'
-        #                 ELSE 'Unknown'
-        #             END AS quantity_comparison
-        #         FROM 
-        #             products p
-        #         LEFT JOIN 
-        #             (
-        #                 SELECT product_id, SUM(quantity) AS total_quantity
-        #                 FROM inventory
-        #                 GROUP BY product_id
-        #             ) i ON p.product_id = i.product_id
-        #         LEFT JOIN 
-        #             transactions t ON p.product_id = t.product_id
-        #         GROUP BY 
-        #             p.EAN, p.name, i.total_quantity;
-        #         '''
-        
         query = '''
         SELECT
             p.EAN, 
@@ -913,7 +973,6 @@ def main():
 
         operations.update()
         operations.pack() 
-    # actual_stock()
     realtime_stock_mode()
     root.mainloop()
 main()
