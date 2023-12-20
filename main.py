@@ -4,6 +4,8 @@ from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, mes
 from tkcalendar import DateEntry
 from datetime import datetime
 import babel.numbers
+import json
+from ttkwidgets.autocomplete import AutocompleteEntry
 from db_connector import get_conn
 
 my_conn = get_conn()
@@ -36,6 +38,12 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS transactions
                 FOREIGN KEY (product_id) REFERENCES products(product_id))''')
 
 def main():
+
+    # Read categories from JSON file
+    with open('categories.json', 'r') as file:
+        categories_data = json.load(file)
+        categories = categories_data.get('categories', [])
+
     # Get the current date
     current_date = datetime.now()
 
@@ -54,7 +62,7 @@ def main():
             operations.column(col, stretch=tk.YES)
 
     root = tk.Tk()
-    root.title("Product Inventory")
+    root.title("PANSEN Warehouse Management System")
 
     # Set geometry to cover the whole screen
     root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
@@ -62,15 +70,15 @@ def main():
     # Allow the window to be resizable
     root.resizable(True, True)
 
-    ean = tk.IntVar()
-    qty = tk.IntVar()
     name = tk.StringVar()
     waznosc = tk.StringVar()
     location_var = tk.StringVar()
     category_var = tk.StringVar()
+    ean = tk.IntVar()
+    qty = tk.IntVar()
     include_expiration_var = IntVar()
-    include_expiration_var.set(1)  # Set default to include expiration
 
+    include_expiration_var.set(1)
     ean.set("")
     qty.set(1)
 
@@ -201,7 +209,6 @@ def main():
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
         finally:
-            # Close the cursor (optional, as you will close it when the application exits)
             cursor.close()
 
         # Clear the entry fields after inserting the values
@@ -211,71 +218,6 @@ def main():
         qty.set(1)
         ref()
         actual_stock()
-
-
-
-    # def put_product_to_inventory(include_expiration=True):
-    #     """
-    #     Adds a product batch to the 'inventory' table in the database.
-    #     Checks for existing product, retrieves its product_id, and inserts the batch.
-    #     """
-
-    #     get_ean = ean.get()
-    #     get_qty = qty.get()
-    #     location = location_var.get()
-
-    #     if get_qty is None:
-    #         get_qty = 1
-
-    #     # Check if the EAN and name are not empty
-    #     if not get_ean or not get_qty:
-    #         messagebox.showerror("Błąd!", "EAN i Ilość są wymagane!")
-    #         return
-
-    #     product_id_query = "SELECT product_id FROM products WHERE EAN = %s"
-    #     product_id_values = (get_ean, )
-
-    #     try:
-    #         with get_conn() as my_conn:
-    #             with my_conn.cursor() as cursor:
-    #                 cursor.execute("USE wms")
-    #                 cursor.execute(product_id_query, product_id_values)
-    #                 product_id = cursor.fetchone()
-
-    #                 if product_id:
-    #                     name_get = name.get()
-    #                             # If EAN doesn't exist, proceed with the insertion
-    #                     insert_query = "INSERT INTO products(EAN, name) VALUES (%s, %s)"
-    #                     insert_values = (get_ean, name_get)
-    #                     # 'product_id' retrieved from 'products' table
-    #                     # Insert product batch with expiration date
-    #                     if include_expiration:
-    #                         query = "INSERT INTO inventory(product_id, quantity, location, expiration_date, entry_date) VALUES (%s, %s, %s, %s, %s)"
-    #                         values = (product_id[0], get_qty, location, waznosc.get(), formatted_date)
-    #                     # Insert product batch without expiration date
-    #                     else:
-    #                         query = "INSERT INTO inventory(product_id, quantity, location, entry_date) VALUES (%s, %s, %s, %s)"
-    #                         values = (product_id[0], get_qty, location, formatted_date)
-
-    #                     cursor.execute(query, values)
-    #                     cursor.execute(insert_query, insert_values)
-    #                     my_conn.commit()
-    #                 else:
-    #                     print("Produktu nie znaleziono.")
-
-    #     except mysql.connector.Error as err:
-    #         print(f"Error executing query: {err}")
-    #     finally:
-    #         # Close the cursor (optional, as you will close it when the application exits)
-    #         cursor.close()
-
-    #     # Clear the entry field after inserting the value
-    #     ean_entry.delete(0, tk.END)
-    #     qty_entry.delete(0, tk.END)
-    #     name_entry.delete(0, tk.END)
-    #     qty.set(1)
-    #     ref()
-    #     actual_stock()
 
     def packing():
         """
@@ -317,7 +259,6 @@ def main():
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
         finally:
-            # Close the cursor (optional, as you will close it when the application exits)
             cursor.close()
 
         # Clear the entry field after inserting the value
@@ -328,7 +269,7 @@ def main():
         ref()
         sent_today_mode()
 
-        # Function to handle the checkbutton state change
+    # Function to handle the checkbutton state change
     def handle_expiration_check():
         include_expiration = include_expiration_var.get()
         if include_expiration:
@@ -352,25 +293,22 @@ def main():
     qty_label = tk.Label(upper_gui, text="Ilość: ", width=7)
     name_label = tk.Label(upper_gui, text="Nazwa: ", width=10)
     name_entry = ttk.Entry(upper_gui, textvariable=name, width=40)
-    waznosc_label = tk.Label(upper_gui, text="Ważność", width=10)
-    waznosc_entry = DateEntry(upper_gui, textvariable=waznosc, date_pattern='y/m/d')
+    exp_label = tk.Label(upper_gui, text="Ważność", width=10)
+    exp_entry = DateEntry(upper_gui, textvariable=waznosc, date_pattern='y/m/d')
+    category_label = tk.Label(upper_gui, text="(Opcjonalne) Kategoria: ")
     category_combo = ttk.Combobox(upper_gui, text="Kategoria", textvariable=category_var)
-    category_combo.set('Suplementy')
-    category_combo['values'] = ['Suplementy', 'Nabiał', 'Mięso', 'Ryby i owoce morza', 'Owoce', 'Produkty zbożowe', 'Przetwory spożywcze', 'Napoje', 'Słodycze','Przekąski','Produkty organiczne']
+    category_combo['values'] = categories
     
     send_button = ttk.Button(upper_gui, text="Nadaj", command=packing)
     location_label = ttk.Label(upper_gui, text="Lokalizacja")
     location_combo = ttk.Combobox(upper_gui, text="Lokalizacja", textvariable=location_var)
-    location_combo['values'] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',]
+    # location_combo['values'] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',]
     add_button = ttk.Button(upper_gui, text="Dodaj do bazy", command=add_product)
+    
 
     # Add a button for putting data into inventory
     put_into_inventory_button = ttk.Button(upper_gui, text="Dodaj partie", command=put_product_to_inventory)
     put_into_inventory_button.pack()
-
-    # root.bind('<Return>',lambda event:put_product_to_inventory())
-
-    # root.bind('<Return>',lambda event:add_product())
 
     ean_label.pack()
     ean_entry.pack()
@@ -380,12 +318,13 @@ def main():
     qty_label.pack()
     qty_entry.pack()
 
-    waznosc_label.pack()
-    waznosc_entry.pack()
+    exp_label.pack()
+    exp_entry.pack()
 
     send_button.pack()
     location_label.pack()
     location_combo.pack()
+    category_label.pack()
     category_combo.pack()
     add_button.pack()
     expiration_checkbutton.pack()
@@ -400,34 +339,33 @@ def main():
             widget.pack_forget()
     
     # Mode-specific functions and their associated widgets
-            
     def add_product_mode_widgets():
         show_widgets([name_label, name_entry, ean_label, ean_entry, category_combo, add_button])
-        hide_widgets([waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button, expiration_checkbutton])
+        hide_widgets([exp_entry, exp_label, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button, expiration_checkbutton, category_combo, category_label])
+
+    def actual_mode_widgets():
+        show_widgets([name_label, name_entry, qty_label, qty_entry, exp_label, exp_entry, location_label, location_combo, copy_button, expiration_checkbutton,category_combo, put_into_inventory_button])
+        hide_widgets([send_button, add_button])
 
     def sent_today_widgets():
         show_widgets([send_button, copy_button, ean_label, ean_entry])
-        hide_widgets([add_button, waznosc_label, waznosc_entry, qty_label, qty_entry, location_label, location_combo, put_into_inventory_button, name_entry, name_label, expiration_checkbutton, category_combo])
-
-    def actual_mode_widgets():
-        show_widgets([name_label, name_entry, qty_label, qty_entry, waznosc_label, waznosc_entry, location_label, location_combo, copy_button, expiration_checkbutton, put_into_inventory_button])
-        hide_widgets([send_button, add_button, category_combo])
+        hide_widgets([add_button, exp_label, exp_entry, qty_label, qty_entry, location_label, location_combo, put_into_inventory_button, name_entry, name_label, expiration_checkbutton, category_combo, category_label])
 
     def overall_mode_widgets():
-        show_widgets([send_button, waznosc_label, waznosc_entry])
-        hide_widgets([add_button, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button, expiration_checkbutton])
+        show_widgets([send_button, exp_label, exp_entry])
+        hide_widgets([add_button, exp_entry, exp_label, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button, expiration_checkbutton, category_combo, category_label])
 
     def find_by_ean_mode_widgets():
         show_widgets([copy_button, ean_label, ean_entry])
-        hide_widgets([name_entry, name_label, waznosc_entry, waznosc_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button, add_button, expiration_checkbutton])
+        hide_widgets([name_entry, name_label, exp_entry, exp_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button, add_button, expiration_checkbutton, category_combo, category_label])
 
     def total_stock_mode_widgets():
-        show_widgets([copy_button, waznosc_label,waznosc_entry])
-        hide_widgets([ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
+        show_widgets([copy_button, exp_label, exp_entry])
+        hide_widgets([ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton, category_combo, category_label])
 
     def show_eveything_widgets():
-        hide_widgets([copy_button, waznosc_label,waznosc_entry])
-        show_widgets([copy_button, waznosc_label, waznosc_entry, ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
+        hide_widgets([copy_button, exp_label, exp_entry])
+        show_widgets([copy_button, exp_label, exp_entry, ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton, category_combo, category_label])
     
     def sent_today_mode():
         sent_today_widgets()
@@ -495,9 +433,11 @@ def main():
                         if product_id:
                             # Update inventory based on product_id
                             query = """UPDATE inventory 
-                                    SET quantity = %s, location = %s 
+                                    SET quantity = %s, location = %s, expiration_date = %s
                                     WHERE product_id = %s;"""
-                            values = (qty.get(), waznosc.get(), product_id[0])
+                            values = (qty.get(),location_var.get(), waznosc.get(), product_id[0])
+
+                            # print(values)
 
                             cursor.execute(query, values)
                             my_conn.commit()
@@ -508,7 +448,6 @@ def main():
             except mysql.connector.Error as err:
                 print(f"Error executing query: {err}")
             finally:
-                # Close the cursor (optional, as you will close it when the application exits)
                 cursor.close()
         else:
             print("Not enough values in the tuple.")
@@ -528,16 +467,17 @@ def main():
         
     r = IntVar()
     # Modify your radio buttons' commands to call the corresponding mode functions
-    add_product_radio = Radiobutton(radio_frame, text="Dodaj EAN do bazy",
-                        variable=r, value=1, highlightthickness=0, command=add_product_mode)
+    # add_product_radio = Radiobutton(radio_frame, text="Dodaj EAN do bazy",
+    #                     variable=r, value=1, highlightthickness=0, command=add_product_mode)
     actual_radio = Radiobutton(radio_frame, text="Aktualny stan",
                         variable=r, value=0, highlightthickness=0, command=realtime_stock_mode)
     find_by_ean_radio = Radiobutton(radio_frame, text="Znajdz po EAN",
                         variable=r, value=4, highlightthickness=0, command=find_by_ean_mode)
     send_radio = Radiobutton(radio_frame, text="Wysyłka",
                         variable=r, value=2, highlightthickness=0, command=sent_today_mode)
-    overall_sent_radio = Radiobutton(radio_frame, text="Wszystkie wysłane",
-                        variable=r, value=3, highlightthickness=0, command=overall_mode)
+    # overall_sent_radio = Radiobutton(radio_frame, text="Wszystkie wysłane",
+    #                     variable=r, value=3, highlightthickness=0, command=overall_mode)
+
     # total_stock_radio = Radiobutton(radio_frame, text="Wszystko",
     #                     variable=r, value=5, highlightthickness=0, command=total_stock_mode)
     
@@ -547,14 +487,16 @@ def main():
     everything = Radiobutton(radio_frame, text="Wszystko",
                     variable=r, value=7, highlightthickness=0, command=show_eveything_mode)
     
-    add_product_radio.pack()
+    # add_product_radio.pack()
     actual_radio.pack()
     find_by_ean_radio.pack()
     send_radio.pack()
-    overall_sent_radio.pack()
+    # overall_sent_radio.pack()
+
     # total_stock_radio.pack()
+
     expiration_stock_radio.pack()
-    everything.pack()
+    # everything.pack()
 
     # Create a button for copying EAN
     copy_button = ttk.Button(radio_frame, text="Kopiuj EAN", command=copy_ean_from_list)
@@ -607,7 +549,6 @@ def main():
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
         finally:
-            # Close the cursor
             cursor.close()
 
     def find_by_ean():
@@ -643,7 +584,6 @@ def main():
             except mysql.connector.Error as err:
                 print(f"Error executing query: {err}")
             finally:
-                # Close the cursor
                 cursor.close()
         root.bind('<Return>',lambda event:find_by_ean_click())
 
@@ -680,7 +620,6 @@ def main():
             except mysql.connector.Error as err:
                 print(f"Error executing query: {err}")
             finally:
-                # Close the cursor
                 cursor.close()
         else:
             query = '''
@@ -709,12 +648,11 @@ def main():
             except mysql.connector.Error as err:
                 print(f"Error executing query: {err}")
             finally:
-                # Close the cursor
                 cursor.close()
                 
     def actual_stock():
-        columns = ('EAN', "name", 'qty_difference', 'expiration_date')
-        headings = ('EAN', "Nazwa", 'Stan', 'Data waznosci')
+        columns = ('EAN', "name", 'qty_difference', 'expiration_date', 'location')
+        headings = ('EAN', "Nazwa", 'Stan', 'Data waznosci','Lokalizacja')
 
         configure_treeview(columns, headings)
         
@@ -724,6 +662,7 @@ def main():
             p.name,
             COALESCE(i.total_quantity, 0) - COALESCE(SUM(t.qty), 0) AS qty_difference,
             MAX(COALESCE(i.expiration_date, 'No expiration date')) AS expiration_date,
+            MAX(COALESCE(i.location, 'No location')) AS location,
             CASE
                 WHEN COALESCE(i.total_quantity, 0) = COALESCE(SUM(t.qty), 0) THEN 'Match'
                 WHEN COALESCE(i.total_quantity, 0) > COALESCE(SUM(t.qty), 0) THEN 'Inventory Excess'
@@ -734,7 +673,7 @@ def main():
             products p
         LEFT JOIN 
             (
-                SELECT product_id, SUM(quantity) AS total_quantity, MAX(expiration_date) AS expiration_date
+                SELECT product_id, SUM(quantity) AS total_quantity, MAX(expiration_date) AS expiration_date, MAX(location) AS location
                 FROM inventory
                 GROUP BY product_id
             ) i ON p.product_id = i.product_id
@@ -782,7 +721,8 @@ def main():
                     FROM products p
                         JOIN inventory i ON p.product_id = i.product_id
                         LEFT JOIN transactions t ON p.product_id = t.product_id
-                    WHERE i.expiration_date BETWEEN CURDATE() AND CURDATE() + INTERVAL 7 DAY
+                        WHERE (i.expiration_date BETWEEN CURDATE() AND CURDATE() + INTERVAL 7 DAY)
+                            OR (i.expiration_date < CURDATE())
                     GROUP BY p.EAN, p.name
                 ) AS subquery;
              '''
@@ -892,54 +832,107 @@ def main():
 
         configure_treeview(columns, headings)
 
-        query = '''
-                    SELECT
-                        q1.product_id,
-                        q1.EAN,
-                        q1.name,
-                        q1.location,
-                        q2.total_quantity,
-                        q1.qty_difference,
-                        q2.total_quantity - q1.qty_difference AS remaining_quantity,
-                        q2.entry_date
-                    FROM (
-                        SELECT
-                            p.product_id,
-                            p.EAN,
-                            p.name,
-                            MAX(i.quantity) AS quantity,
-                            MAX(i.location) AS location,
-                            MAX(i.expiration_date) AS expiration_date,
-                            SUM(COALESCE(i.quantity, 0) - COALESCE(t.qty, 0)) AS qty_difference,
-                            MAX(i.entry_date) AS entry_date
-                        FROM
-                            products p
-                        LEFT JOIN
-                            inventory i ON p.product_id = i.product_id
-                        LEFT JOIN
-                            transactions t ON p.product_id = t.product_id
-                        GROUP BY
-                            p.product_id, p.EAN, p.name
-                    ) q1
-                    JOIN (
-                        SELECT
-                            p.product_id,
-                            p.EAN,
-                            p.name,
-                            i.entry_date,
-                            SUM(COALESCE(i.quantity, 0)) AS total_quantity
-                        FROM
-                            products p
-                        LEFT JOIN
-                            inventory i ON p.product_id = i.product_id
-                        LEFT JOIN
-                            transactions t ON p.product_id = t.product_id
-                        GROUP BY
-                            p.product_id, p.EAN, p.name, i.entry_date
-                        ORDER BY
-                            p.EAN, i.entry_date
-                    ) q2 ON q1.product_id = q2.product_id AND q1.EAN = q2.EAN AND q1.name = q2.name;
-        '''
+        query = """
+SELECT
+    q1.product_id,
+    q1.EAN,
+    q1.name,
+    q1.location,
+    q2.total_quantity,
+    q1.qty_difference,
+    q2.total_quantity - q1.qty_difference AS remaining_quantity,
+    q2.entry_date
+FROM (
+    SELECT
+        p.product_id,
+        p.EAN,
+        p.name,
+        MAX(i.quantity) AS quantity,
+        MAX(i.location) AS location,
+        MAX(i.expiration_date) AS expiration_date,
+        SUM(COALESCE(i.quantity, 0) - COALEDCE(t.qty, 0)) AS qty_difference,
+        MAX(i.entry_date) AS entry_date
+    FROM
+        products p
+    LEFT JOIN
+        inventory i ON p.product_id = i.product_id
+    LEFT JOIN
+        transactions t ON p.product_id = t.product_id
+    WHERE
+        i.entry_date BETWEEN '2023-01-01' AND '2023-01-07'  -- Specify your date range here
+    GROUP BY
+        p.product_id, p.EAN, p.name
+) q1
+JOIN (
+    SELECT
+        p.product_id,
+        p.EAN,
+        p.name,
+        i.entry_date,
+        SUM(COALESCE(i.quantity, 0)) AS total_quantity
+    FROM
+        products p
+    LEFT JOIN
+        inventory i ON p.product_id = i.product_id
+    LEFT JOIN
+        transactions t ON p.product_id = t.product_id
+    WHERE
+        i.entry_date BETWEEN '2023-01-01' AND '2023-12-31'  -- Specify your date range here
+    GROUP BY
+        p.product_id, p.EAN, p.name, i.entry_date
+    ORDER BY
+        p.EAN, i.entry_date
+) q2 ON q1.product_id = q2.product_id AND q1.EAN = q2.EAN AND q1.name = q2.name;
+"""
+
+        # query = '''
+        #             SELECT
+        #                 q1.product_id,
+        #                 q1.EAN,
+        #                 q1.name,
+        #                 q1.location,
+        #                 q2.total_quantity,
+        #                 q1.qty_difference,
+        #                 q2.total_quantity - q1.qty_difference AS remaining_quantity,
+        #                 q2.entry_date
+        #             FROM (
+        #                 SELECT
+        #                     p.product_id,
+        #                     p.EAN,
+        #                     p.name,
+        #                     MAX(i.quantity) AS quantity,
+        #                     MAX(i.location) AS location,
+        #                     MAX(i.expiration_date) AS expiration_date,
+        #                     SUM(COALESCE(i.quantity, 0) - COALESCE(t.qty, 0)) AS qty_difference,
+        #                     MAX(i.entry_date) AS entry_date
+        #                 FROM
+        #                     products p
+        #                 LEFT JOIN
+        #                     inventory i ON p.product_id = i.product_id
+        #                 LEFT JOIN
+        #                     transactions t ON p.product_id = t.product_id
+        #                 GROUP BY
+        #                     p.product_id, p.EAN, p.name
+        #             ) q1
+        #             JOIN (
+        #                 SELECT
+        #                     p.product_id,
+        #                     p.EAN,
+        #                     p.name,
+        #                     i.entry_date,
+        #                     SUM(COALESCE(i.quantity, 0)) AS total_quantity
+        #                 FROM
+        #                     products p
+        #                 LEFT JOIN
+        #                     inventory i ON p.product_id = i.product_id
+        #                 LEFT JOIN
+        #                     transactions t ON p.product_id = t.product_id
+        #                 GROUP BY
+        #                     p.product_id, p.EAN, p.name, i.entry_date
+        #                 ORDER BY
+        #                     p.EAN, i.entry_date
+        #             ) q2 ON q1.product_id = q2.product_id AND q1.EAN = q2.EAN AND q1.name = q2.name;
+        # '''
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
@@ -972,7 +965,6 @@ def main():
             operations.delete(item)
 
         operations.update()
-        operations.pack() 
     realtime_stock_mode()
     root.mainloop()
 main()
