@@ -1,6 +1,6 @@
 import mysql.connector
 import tkinter as tk
-from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, messagebox,Text, Checkbutton
+from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, messagebox,Text, Checkbutton, LEFT
 from tkcalendar import DateEntry
 from datetime import datetime
 import babel.numbers
@@ -506,7 +506,7 @@ def main():
     edit_button = ttk.Button(radio_frame, text="Edytuj", command=edit_row)
     edit_button.pack() # Adjust the row and column as needed
 
-    radio_frame.pack(side=tk.RIGHT)
+    radio_frame.pack(side=tk.LEFT, fill=tk.Y)
 
     operations_frame = Frame(root, bd=2, width=1920, height=400, relief=SUNKEN)
     operations_frame.pack(side='bottom')
