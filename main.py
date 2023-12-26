@@ -397,8 +397,6 @@ def main():
     def expiration_mode():
         display_expirations()
 
-    radio_frame = tk.Frame(root, bd=2, relief=SUNKEN)
-
     def copy_ean_from_list():
         selected_item = operations.selection()
         if selected_item:
@@ -452,61 +450,43 @@ def main():
         else:
             print("Not enough values in the tuple.")
 
-    mode_of_transportation = ttk.Label(radio_frame, text="Model pracy: ")
-    mode_of_transportation.pack()
+    def on_item_click(event):
+        selected_items = tree_menu.selection()
+        if selected_items:
+            item = selected_items[0]
+            if item == "item1":
+                realtime_stock_mode()
+            elif item == "item2":
+                find_by_ean_mode()
+            elif item == "item3":
+                sent_today_mode()
+            elif item == "item4":
+                expiration_mode()
+            elif item == "item5":
+                show_eveything_mode()
+            elif item == "item6":
+                overall_mode()
 
-# horizontal separator
-    ttk.Separator(
-        master=radio_frame,
-        orient=HORIZONTAL,
-        style='blue.TSeparator',
-        class_= ttk.Separator,
-        takefocus= 1,
-        cursor='plus'    
-    ).pack()
-        
-    r = IntVar()
-    # Modify your radio buttons' commands to call the corresponding mode functions
-    # add_product_radio = Radiobutton(radio_frame, text="Dodaj EAN do bazy",
-    #                     variable=r, value=1, highlightthickness=0, command=add_product_mode)
-    actual_radio = Radiobutton(radio_frame, text="Aktualny stan",
-                        variable=r, value=0, highlightthickness=0, command=realtime_stock_mode)
-    find_by_ean_radio = Radiobutton(radio_frame, text="Znajdz po EAN",
-                        variable=r, value=4, highlightthickness=0, command=find_by_ean_mode)
-    send_radio = Radiobutton(radio_frame, text="Wysyłka",
-                        variable=r, value=2, highlightthickness=0, command=sent_today_mode)
-    # overall_sent_radio = Radiobutton(radio_frame, text="Wszystkie wysłane",
-    #                     variable=r, value=3, highlightthickness=0, command=overall_mode)
+    tree_menu = ttk.Treeview(root)
+    tree_menu.heading("#0", text="Opcje")
+    tree_menu.insert("", "0", "item1", text="Aktualny Stan")
+    tree_menu.insert("", "1", "item2", text="Znajdź po EAN")
+    tree_menu.insert("", "2", "item3", text="Wysyłka")
+    tree_menu.insert("", "3", "item4", text="Krótka data")
+    tree_menu.insert("", "4", "item5", text="Wszystko")
+    tree_menu.insert("", "5", "item6", text="Wszystkie wysłane")
 
-    # total_stock_radio = Radiobutton(radio_frame, text="Wszystko",
-    #                     variable=r, value=5, highlightthickness=0, command=total_stock_mode)
-    
-    expiration_stock_radio = Radiobutton(radio_frame, text="Krótka data",
-                    variable=r, value=6, highlightthickness=0, command=expiration_mode)
-    
-    everything = Radiobutton(radio_frame, text="Wszystko",
-                    variable=r, value=7, highlightthickness=0, command=show_eveything_mode)
-    
-    # add_product_radio.pack()
-    actual_radio.pack()
-    find_by_ean_radio.pack()
-    send_radio.pack()
-    # overall_sent_radio.pack()
+    tree_menu.bind("<Button-1>", on_item_click)
 
-    # total_stock_radio.pack()
-
-    expiration_stock_radio.pack()
-    # everything.pack()
+    tree_menu.pack(side=LEFT, fill=tk.Y)
 
     # Create a button for copying EAN
-    copy_button = ttk.Button(radio_frame, text="Kopiuj EAN", command=copy_ean_from_list)
-    copy_button.pack() # Adjust the row and column as needed
+    copy_button = ttk.Button(tree_menu, text="Kopiuj EAN", command=copy_ean_from_list)
+    copy_button.pack(side='bottom')
 
     # # Create a button for copying EAN
-    edit_button = ttk.Button(radio_frame, text="Edytuj", command=edit_row)
-    edit_button.pack() # Adjust the row and column as needed
-
-    radio_frame.pack(side=tk.LEFT, fill=tk.Y)
+    edit_button = ttk.Button(tree_menu, text="Edytuj", command=edit_row)
+    edit_button.pack(side='bottom')
 
     operations_frame = Frame(root, bd=2, width=1920, height=400, relief=SUNKEN)
     operations_frame.pack(side='bottom')
@@ -850,7 +830,7 @@ FROM (
         MAX(i.quantity) AS quantity,
         MAX(i.location) AS location,
         MAX(i.expiration_date) AS expiration_date,
-        SUM(COALESCE(i.quantity, 0) - COALEDCE(t.qty, 0)) AS qty_difference,
+        SUM(COALESCE(i.quantity, 0) - COALESCE(t.qty, 0)) AS qty_difference,
         MAX(i.entry_date) AS entry_date
     FROM
         products p
