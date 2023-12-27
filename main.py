@@ -1,6 +1,6 @@
 import mysql.connector
 import tkinter as tk
-from tkinter import ttk, Frame, NO, IntVar, Radiobutton, SUNKEN, HORIZONTAL, messagebox,Text, Checkbutton, LEFT
+from tkinter import ttk, Frame, NO, YES, IntVar, Radiobutton, SUNKEN, HORIZONTAL, messagebox,Text, Checkbutton, LEFT
 from tkcalendar import DateEntry
 from datetime import datetime
 import babel.numbers
@@ -278,7 +278,7 @@ def main():
             put_into_inventory_button.config(command=lambda: put_product_to_inventory(include_expiration=False))
 
     # Create a frame for the upper part of the GUI
-    upper_gui = tk.Frame(root, width=1920, height=500, bd=2, relief=SUNKEN)
+    upper_gui = tk.Frame(root, width=1320, height=500, bd=2, relief=SUNKEN)
 
     # Create the Checkbutton for expiration date 
     expiration_checkbutton = Checkbutton(upper_gui, text="Z datą ważności", variable=include_expiration_var)
@@ -364,8 +364,7 @@ def main():
         hide_widgets([ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton, category_combo, category_label])
 
     def show_eveything_widgets():
-        hide_widgets([copy_button, exp_label, exp_entry])
-        show_widgets([copy_button, exp_label, exp_entry, ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton, category_combo, category_label])
+        hide_widgets([copy_button, exp_label, exp_entry, ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton, category_combo, category_label])
     
     def sent_today_mode():
         sent_today_widgets()
@@ -435,8 +434,6 @@ def main():
                                     WHERE product_id = %s;"""
                             values = (qty.get(),location_var.get(), waznosc.get(), product_id[0])
 
-                            # print(values)
-
                             cursor.execute(query, values)
                             my_conn.commit()
                             print("Row updated successfully.")
@@ -449,6 +446,8 @@ def main():
                 cursor.close()
         else:
             print("Not enough values in the tuple.")
+
+    menu = tk.Frame(root, width=400)
 
     def on_item_click(event):
         selected_items = tree_menu.selection()
@@ -467,7 +466,7 @@ def main():
             elif item == "item6":
                 overall_mode()
 
-    tree_menu = ttk.Treeview(root)
+    tree_menu = ttk.Treeview(menu)
     tree_menu.heading("#0", text="Opcje")
     tree_menu.insert("", "0", "item1", text="Aktualny Stan")
     tree_menu.insert("", "1", "item2", text="Znajdź po EAN")
@@ -478,7 +477,11 @@ def main():
 
     tree_menu.bind("<Button-1>", on_item_click)
 
-    tree_menu.pack(side=LEFT, fill=tk.Y)
+    # tree_menu.column("#0", width=150, stretch=YES)  # Adjust the width as needed
+
+    tree_menu.pack_propagate(False)
+
+    tree_menu.pack(side=LEFT, fill=tk.BOTH)
 
     # Create a button for copying EAN
     copy_button = ttk.Button(tree_menu, text="Kopiuj EAN", command=copy_ean_from_list)
@@ -488,7 +491,9 @@ def main():
     edit_button = ttk.Button(tree_menu, text="Edytuj", command=edit_row)
     edit_button.pack(side='bottom')
 
-    operations_frame = Frame(root, bd=2, width=1920, height=400, relief=SUNKEN)
+    menu.pack(side=LEFT, fill=tk.BOTH)
+
+    operations_frame = Frame(root, bd=2, width=1320, height=400, relief=SUNKEN) 
     operations_frame.pack(side='bottom')
     operations_frame.pack_propagate(False)
 
