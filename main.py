@@ -61,7 +61,7 @@ def main():
             operations.column(col, stretch=tk.YES)
 
     root = tk.Tk()
-    root.title("PANSEN Warehouse Management System")
+    root.title("StorEdge Warehouse Management System")
 
     # Set geometry to cover the whole screen
     root.geometry("{0}x{1}+0+0".format(root.winfo_screenwidth(), root.winfo_screenheight()))
@@ -306,7 +306,7 @@ def main():
 
     # Add a button for putting data into inventory
     put_into_inventory_button = ttk.Button(upper_gui, text="Dodaj partie", command=put_product_to_inventory)
-    put_into_inventory_button.pack()
+    put_into_inventory_button.pack(side=BOTTOM)
 
     ean_label.pack()
     ean_entry.pack()
@@ -355,14 +355,14 @@ def main():
 
     def show_eveything_widgets():
         hide_widgets([copy_button, exp_label, exp_entry, ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton, category_combo, category_label])
-    
-    def sent_today_mode():
-        sent_today_widgets()
-        sent_today_table()
 
     def realtime_stock_mode():
         actual_mode_widgets()
         actual_stock()
+
+    def sent_today_mode():
+        sent_today_widgets()
+        sent_today_table()
 
     def overall_sent_mode():
         overall_sent_mode_widgets()
@@ -455,20 +455,24 @@ def main():
     tree_menu.insert("", "1", "item2", text="Znajdź po EAN")
     tree_menu.insert("", "2", "item3", text="Wysyłka")
     tree_menu.insert("", "3", "item4", text="Krótka data")
-    tree_menu.insert("", "4", "item5", text="Wszystko")
+    # tree_menu.insert("", "4", "item5", text="Wszystko")
     tree_menu.insert("", "5", "item6", text="Wszystkie wysłane")
 
     tree_menu.bind("<Button-1>", on_item_click)
 
     tree_menu.pack_propagate(False)
 
+    buttons_menu = Frame(tree_menu)
+
     # Create a button for copying EAN
-    copy_button = ttk.Button(tree_menu, text="Kopiuj EAN", command=copy_ean_from_list)
-    copy_button.pack(side=BOTTOM)
+    copy_button = ttk.Button(buttons_menu, text="Kopiuj EAN", command=copy_ean_from_list)
+    copy_button.pack()
 
     # Create a button for edit row
-    edit_button = ttk.Button(tree_menu, text="Edytuj", command=edit_row)
-    edit_button.pack(side=BOTTOM)
+    edit_button = ttk.Button(buttons_menu, text="Edytuj", command=edit_row)
+    edit_button.pack()
+
+    buttons_menu.pack(side=BOTTOM, fill=tk.X)
 
     tree_menu.pack(side=LEFT, fill=tk.BOTH)
 
@@ -797,7 +801,7 @@ def main():
 
     upper_gui.pack(side=tk.TOP)
     upper_gui.pack_propagate(False)
-    operations.pack()
+
     operations.pack(expand=tk.YES, fill=tk.BOTH)
 
     def ref():
@@ -806,5 +810,6 @@ def main():
 
         operations.update()
     realtime_stock_mode()
+
     root.mainloop()
 main()
