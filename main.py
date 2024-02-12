@@ -38,10 +38,10 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS transactions
 
 def main():
 
-    # Read categories from JSON file
-    with open('categories.json', 'r') as file:
-        categories_data = json.load(file)
-        categories = categories_data.get('categories', [])
+    # # Read categories from JSON file
+    # with open('categories.json', 'r') as file:
+    #     categories_data = json.load(file)
+    #     categories = categories_data.get('categories', [])
 
     # Get the current date
     current_date = datetime.now()
@@ -294,9 +294,9 @@ def main():
     name_entry = ttk.Entry(upper_gui, textvariable=name, width=40)
     exp_label = tk.Label(upper_gui, text="Ważność", width=10)
     exp_entry = DateEntry(upper_gui, textvariable=waznosc, date_pattern='y/m/d')
-    category_label = tk.Label(upper_gui, text="(Opcjonalne) Kategoria: ")
-    category_combo = ttk.Combobox(upper_gui, text="Kategoria", textvariable=category_var)
-    category_combo['values'] = categories
+    # category_label = tk.Label(upper_gui, text="(Opcjonalne) Kategoria: ")
+    # category_combo = ttk.Combobox(upper_gui, text="Kategoria", textvariable=category_var)
+    # category_combo['values'] = categories
     
     send_button = ttk.Button(upper_gui, text="Nadaj", command=packing)
     location_label = ttk.Label(upper_gui, text="Lokalizacja")
@@ -322,8 +322,8 @@ def main():
     send_button.pack()
     location_label.pack()
     location_combo.pack()
-    category_label.pack()
-    category_combo.pack()
+    # category_label.pack()
+    # category_combo.pack()
     add_button.pack()
     expiration_checkbutton.pack()
 
@@ -338,23 +338,23 @@ def main():
     
     # Mode-specific functions and their associated widgets
     def actual_mode_widgets():
-        show_widgets([name_label, name_entry, qty_label, qty_entry, exp_label, exp_entry, location_label, location_combo, copy_button, expiration_checkbutton,category_combo, put_into_inventory_button])
+        show_widgets([name_label, name_entry, qty_label, qty_entry, exp_label, exp_entry, location_label, location_combo, copy_button, expiration_checkbutton, put_into_inventory_button])
         hide_widgets([send_button, add_button])
 
     def sent_today_widgets():
         show_widgets([send_button, copy_button, ean_label, ean_entry])
-        hide_widgets([add_button, exp_label, exp_entry, qty_label, qty_entry, location_label, location_combo, put_into_inventory_button, name_entry, name_label, expiration_checkbutton, category_combo, category_label])
+        hide_widgets([add_button, exp_label, exp_entry, qty_label, qty_entry, location_label, location_combo, put_into_inventory_button, name_entry, name_label, expiration_checkbutton])
 
     def overall_sent_mode_widgets():
         show_widgets([send_button, exp_label, exp_entry])
-        hide_widgets([add_button, exp_entry, exp_label, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button, expiration_checkbutton, category_combo, category_label])
+        hide_widgets([add_button, exp_entry, exp_label, qty_entry, qty_label, location_combo, location_label, copy_button, put_into_inventory_button, expiration_checkbutton])
 
     def find_by_ean_mode_widgets():
         show_widgets([copy_button, ean_label, ean_entry])
-        hide_widgets([name_entry, name_label, exp_entry, exp_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button, add_button, expiration_checkbutton, category_combo, category_label])
+        hide_widgets([name_entry, name_label, exp_entry, exp_label, qty_entry, qty_label, location_combo, location_label, send_button, put_into_inventory_button, add_button, expiration_checkbutton])
 
     def show_eveything_widgets():
-        hide_widgets([copy_button, exp_label, exp_entry, ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton, category_combo, category_label])
+        hide_widgets([copy_button, exp_label, exp_entry, ean_entry, ean_label, name_entry, name_label ,add_button, qty_entry, qty_label, location_combo, location_label, copy_button, send_button, put_into_inventory_button,expiration_checkbutton])
 
     def realtime_stock_mode():
         actual_mode_widgets()
@@ -499,7 +499,7 @@ def main():
                 JOIN products p ON t.product_id = p.product_id
                 WHERE t.transaction_date = %s
         '''
-
+        
         try:
             with get_conn() as my_conn:
                 with my_conn.cursor() as cursor:
@@ -528,12 +528,34 @@ def main():
         configure_treeview(columns, headings)
 
         query = '''
-                SELECT p.EAN, p.name, i.quantity, i.location, i.expiration_date, i.entry_date
-                FROM products p
-                LEFT JOIN inventory i ON p.product_id = i.product_id
-                LEFT JOIN transactions t ON p.product_id = t.product_id
-                WHERE p.EAN = %s
+            SELECT
+                p.EAN, 
+                p.name,
+                COALESCE(i.total_quantity, 0) - COALESCE(SUM(t.qty), 0) AS qty_difference,
+                MAX(COALESCE(i.expiration_date, 'No expiration date')) AS expiration_date,
+                MAX(COALESCE(i.location, 'No location')) AS location,
+                CASE
+                    WHEN COALESCE(i.total_quantity, 0) = COALESCE(SUM(t.qty), 0) THEN 'Match'
+                    WHEN COALESCE(i.total_quantity, 0) > COALESCE(SUM(t.qty), 0) THEN 'Inventory Excess'
+                    WHEN COALESCE(i.total_quantity, 0) < COALESCE(SUM(t.qty), 0) THEN 'Transaction Excess'
+                    ELSE 'Unknown'
+                END AS quantity_comparison
+            FROM 
+                products p
+            LEFT JOIN 
+                (
+                    SELECT product_id, SUM(quantity) AS total_quantity, MAX(expiration_date) AS expiration_date, MAX(location) AS location
+                    FROM inventory
+                    GROUP BY product_id
+                ) i ON p.product_id = i.product_id
+            LEFT JOIN 
+                transactions t ON p.product_id = t.product_id
+            WHERE
+                p.EAN = %s
+            GROUP BY 
+                p.EAN, p.name, i.total_quantity;
         '''
+        
         def find_by_ean_click():
             try:
                 with get_conn() as my_conn:
